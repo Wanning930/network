@@ -38,20 +38,26 @@ struct packet_node {
 	// pnode_t *prev;
 }
 
+
 struct server_buffer {
 	pnode_t *head;
 	pnode_t *tail;
 }
 
-void buffer_enque(buffer_t *buffer, pnode_t *node) {
+void buffer_enque(buffer_t *buffer, packet_t *packet) {
+	pnode_t *node = malloc(sizeof(pnode_t));
+	node->content = packet;
+	node->next = NULL;
 	buffer->tail->next = node;
 	buffer->tail = node;
 }
 
-pnode_t *buffer_deque(buffer_t *buffer) {
+packet_t *buffer_deque(buffer_t *buffer) {
 	pnode_t *pt = buffer->head;
+	packet_t *pc = pt->content;
 	head = head->next;
-	return pt;
+	free(pt);
+	return pc;
 }
 
 bool buffer_isEmpty(buffer_t *buffer) {
@@ -131,7 +137,6 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
 	r->server->packet_window = malloc((SWS + 1) * sizeof(packet_t *));
 	r->server->time_window = malloc((SWS + 1) * sizeof(timespec_t *));
 	/* might change this to pure string buffer */
-	r->server->buffer = malloc(sizeof(buffer_t *));
 	r->server->buffer.head = NULL;
 	r->server->buffer.tail = r->server->buffer.head;
 	return r;
