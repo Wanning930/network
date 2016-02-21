@@ -36,13 +36,13 @@ struct packet_node {
 	packet_t *content;
 	pnode_t *next;
 	// pnode_t *prev;
-}
+};
 
 
 struct server_buffer {
 	pnode_t *head; /* head is a dummy head */
 	pnode_t *tail;
-}
+};
 
 void buffer_enque(buffer_t *buffer, packet_t *packet) {
 	pnode_t *node = malloc(sizeof(pnode_t));
@@ -62,7 +62,7 @@ packet_t *buffer_deque(buffer_t *buffer) {
 }
 
 bool buffer_isEmpty(buffer_t *buffer) {
-	return buffer->head == buffer->tail;
+	return (buffer->head == buffer->tail);
 }
 
 struct reliable_server { /* send data packet and wait for ack */
