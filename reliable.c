@@ -40,7 +40,7 @@ struct packet_node {
 
 
 struct server_buffer {
-	pnode_t *head;
+	pnode_t *head; /* head is a dummy head */
 	pnode_t *tail;
 }
 
@@ -49,12 +49,13 @@ void buffer_enque(buffer_t *buffer, packet_t *packet) {
 	node->content = packet;
 	node->next = NULL;
 	buffer->tail->next = node;
-	buffer->tail = node;
+	buffer->tail = buffer->tail->next;
 }
 
 packet_t *buffer_deque(buffer_t *buffer) {
+	assert(!buffer_isEmpty(buffer));
 	pnode_t *pt = buffer->head;
-	packet_t *pc = pt->content;
+	packet_t *pc = pt->next->content;
 	head = head->next;
 	free(pt);
 	return pc;
@@ -119,7 +120,6 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
 		rel_list->prev = &r->next;
 	}
 	rel_list = r;
-
 	/* Do any other initialization you need here */
 	r->max_seqno = 2 * cc->window;
 	r->client = malloc(sizeof(client_t));
@@ -129,15 +129,19 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
 	r->client->last_legal = 0;
 	r->client->expect = 1;
 	r->client->window = malloc((RWS + 1) * sizeof(packet_t *));
+	memset (r->client->window, 0, (RWS + 1) * sizeof(packet_t *));
 	r->server = malloc(sizeof(server_t));
 	memset (r->server, 0, sizeof (server_t));
 	r->server->SWS = cc->window;
 	r->server->last_acked = 0;
 	r->server->last_sent = 0;
 	r->server->packet_window = malloc((SWS + 1) * sizeof(packet_t *));
+	memset (r->server->packet_window, 0, (SWS + 1) * sizeof(packet_t *));
 	r->server->time_window = malloc((SWS + 1) * sizeof(timespec_t *));
+	memset (r->server->time_window, 0, (SWS + 1) * sizeof(timespec_t *));
 	/* might change this to pure string buffer */
-	r->server->buffer.head = NULL;
+	r->server->buffer.head = malloc(sizeof(pnode_t *));
+	memset (r->server->buffer.head, 0, sizeof(pnode_t *));
 	r->server->buffer.tail = r->server->buffer.head;
 	return r;
 }
@@ -150,9 +154,14 @@ rel_destroy (rel_t *r)
 	}
 	*r->prev = r->next;
 	conn_destroy (r->c);
-
 	/* Free any other allocated memory here */
-
+	free(r->client->window);
+	free(r->client);
+	free(r->server->packet_window);
+	free(r->server->time_window);
+	assert(buffer_isEmpty((r->server->buffer)));
+	free(r->server->buffer_head);
+	free(r->server);
 }
 
 
