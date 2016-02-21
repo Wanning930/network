@@ -203,8 +203,20 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	else { /* client */
 		if ( (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
 			r->client->window[(no - 1) % RWS] = pkt;
-			while (r->client->window[r->client->expect] != NULL) {
-				
+			if (r->client->expect == no) {
+				while (r->client->window[(r->client->expect - 1) % RWS] != NULL) {
+					r->client->window[(r->client->expect - 1) % RWS] == NULL
+					r->client->expect++;
+				}
+				r->client->last_recv = r->cliend->expect - 1;
+				/* send acknowledgment back to server */
+				ack_t ack;
+				ack.len = 8;
+				ack.ackno = ;
+				ack.cksum = cksum ((const void *)(&ack), 8); /* compute TCP-like checksum */
+
+				conn_sendpkt (r->c, &ack, sizeof(ack_t));
+
 			}
 		}
 		else {
