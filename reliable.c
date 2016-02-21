@@ -62,7 +62,7 @@ packet_t *buffer_deque(buffer_t *buffer) {
 	assert(!buffer_isEmpty(buffer));
 	pnode_t *pt = buffer->head;
 	packet_t *pc = pt->next->content;
-	head = head->next;
+	buffer->head = buffer->head->next;
 	free(pt);
 	return pc;
 }
@@ -77,7 +77,7 @@ struct reliable_server { /* send data packet and wait for ack */
 	seqno_t last_sent;
 	packet_t **packet_window; /* last_acked < x <= last_sent might retransmit latter, size = SWS*/
 	timespec_t **time_window;
-	buffer_t buffer; /* from conn_read but not in sliding window, no seq assigned, arbitrary size */
+	buffer_t *buffer; /* from conn_read but not in sliding window, no seq assigned, arbitrary size */
 };
 
 
@@ -134,21 +134,22 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
 	r->client->last_recv = 0;
 	r->client->last_legal = 0;
 	r->client->expect = 1;
-	r->client->window = malloc((RWS + 1) * sizeof(packet_t *));
-	memset (r->client->window, 0, (RWS + 1) * sizeof(packet_t *));
+	r->client->window = malloc((r->client->RWS + 1) * sizeof(packet_t *));
+	memset (r->client->window, 0, (r->client->RWS + 1) * sizeof(packet_t *));
 	r->server = malloc(sizeof(server_t));
 	memset (r->server, 0, sizeof (server_t));
 	r->server->SWS = cc->window;
 	r->server->last_acked = 0;
 	r->server->last_sent = 0;
-	r->server->packet_window = malloc((SWS + 1) * sizeof(packet_t *));
-	memset (r->server->packet_window, 0, (SWS + 1) * sizeof(packet_t *));
-	r->server->time_window = malloc((SWS + 1) * sizeof(timespec_t *));
-	memset (r->server->time_window, 0, (SWS + 1) * sizeof(timespec_t *));
+	r->server->packet_window = malloc((r->server->SWS + 1) * sizeof(packet_t *));
+	memset (r->server->packet_window, 0, (r->server->SWS + 1) * sizeof(packet_t *));
+	r->server->time_window = malloc((r->server->SWS + 1) * sizeof(timespec_t *));
+	memset (r->server->time_window, 0, (r->server->SWS + 1) * sizeof(timespec_t *));
 	/* might change this to pure string buffer */
-	r->server->buffer.head = malloc(sizeof(pnode_t *));
-	memset (r->server->buffer.head, 0, sizeof(pnode_t *));
-	r->server->buffer.tail = r->server->buffer.head;
+	r->server->buffer = malloc(sizeof(buffer_t));
+	r->server->buffer->head = malloc(sizeof(pnode_t *));
+	memset (r->server->buffer->head, 0, sizeof(pnode_t *));
+	r->server->buffer->tail = r->server->buffer->head;
 	return r;
 }
 
@@ -165,8 +166,9 @@ rel_destroy (rel_t *r)
 	free(r->client);
 	free(r->server->packet_window);
 	free(r->server->time_window);
-	assert(buffer_isEmpty((r->server->buffer)));
-	free(r->server->buffer_head);
+	assert(buffer_isEmpty(r->server->buffer));
+	free(r->server->buffer->head);
+	free(r->server->buffer);
 	free(r->server);
 }
 
