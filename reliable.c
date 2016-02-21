@@ -25,6 +25,8 @@ typedef struct server_buffer buffer_t;
 // typedef struct reliable_state rel_t;
 typedef struct ack_packet ack_t;
 
+#define ACK_LEN 8
+#define CKSUM_LEN (sizeof(uint16_t))
 
 void buffer_enque(buffer_t *buffer, packet_t *packet);
 packet_t *buffer_deque(buffer_t *buffer);
@@ -198,31 +200,50 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
 	seqno_t no = pkt->seqno;
 	if (packet_isAck(pkt)) { /* server */
-
-	}
-	else { /* client */
-		if ( (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
-			r->client->window[(no - 1) % RWS] = pkt;
-			if (r->client->expect == no) {
-				while (r->client->window[(r->client->expect - 1) % RWS] != NULL) {
-					r->client->window[(r->client->expect - 1) % RWS] == NULL
-					r->client->expect++;
-				}
-				r->client->last_recv = r->cliend->expect - 1;
-				/* send acknowledgment back to server */
-				ack_t ack;
-				ack.len = 8;
-				ack.ackno = ;
-				ack.cksum = cksum ((const void *)(&ack), 8); /* compute TCP-like checksum */
-
-				conn_sendpkt (r->c, &ack, sizeof(ack_t));
-
-			}
-		}
-		else {
+		if (pkt->cksum != cksum((void *)pkt + CKSUM_LEN, n - CKSUM_LEN)) {
 			/* discard this packet */
 		}
+		else {
+			while (pkt->ackno - r->server->last_acked > 1) {
+				// r->server->last_acked++;
+				r->server->time_window[(r->server->last_acked - 1) % SWS] = NULL;
+				r->server->packet_window[(r->server->last_acked - 1) % SWS] = NULL;
+				r->server->last_acked++;
+			}
+		}
 	}
+	else {
+		if (pkt->cksum != cksum((void *)pkt + CKSUM_LEN, n - CKSUM_LEN)) { 
+			/* discard this packet */
+		}
+		else { /* client */
+			if ( (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
+				/* in the window */
+				r->client->window[(no - 1) % RWS] = pkt;
+				if (r->client->expect == no) {
+					while (r->client->window[(r->client->expect - 1) % RWS] != NULL) {
+						r->client->window[(r->client->expect - 1) % RWS] == NULL
+						r->client->expect++;
+					}
+					r->client->last_recv = r->cliend->expect - 1;
+					/* send acknowledgment back to server */
+					ack_t ack;
+					ack.len = ACK_LEN;
+					ack.ackno = r->client->expect;
+					ack.cksum = cksum ((const void *)(&ack) + CKSUM_LEN, ACK_LEN - CKSUM_LEN); 
+					conn_sendpkt (r->c, &ack, ACK_LEN));
+				}
+			}
+			else {
+				/* discard this packet */
+			}
+		}
+		ack_t ack;
+		ack.len = ACK_LEN;
+		ack.ackno = r->client->expect;
+		conn_sendpkt (r->c, &ack, ACK_LEN));
+	}	
+	
 }
 
 
