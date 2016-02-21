@@ -31,7 +31,7 @@ typedef struct ack_packet ack_t;
 void buffer_enque(buffer_t *buffer, packet_t *packet);
 packet_t *buffer_deque(buffer_t *buffer);
 bool buffer_isEmpty(buffer_t *buffer);
-bool packet_isAck(packet_t *packet);
+bool packet_isAck(size_t n);
 
 
 struct reliable_client { /* receive data packet and send ack */
@@ -99,8 +99,8 @@ bool buffer_isEmpty(buffer_t *buffer) {
 	return (buffer->head == buffer->tail);
 }
 
-bool packet_isAck(packet_t *packet) {
-	return (sizeof(packet) == sizeof(ack_t));
+bool packet_isAck(size_t n) {
+	return (n == sizeof(ack_t));
 }
 
 
@@ -139,7 +139,7 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
 	memset (r->client, 0, sizeof (client_t));
 	r->client->RWS = cc->window;
 	r->client->last_recv = -1;
-	r->client->last_legal = RWS - 1;
+	r->client->last_legal = r->client->RWS - 1;
 	r->client->expect = 0;
 	r->client->window = malloc((r->client->RWS) * sizeof(packet_t *));
 	memset (r->client->window, 0, (r->client->RWS) * sizeof(packet_t *));
@@ -198,8 +198,10 @@ rel_demux (const struct config_common *cc,
 void
 rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
+	seqno_t SWS = r->server->SWS;
+	seqno_t RWS = r->client->RWS;
 	seqno_t no = pkt->seqno;
-	if (packet_isAck(pkt)) { /* server */
+	if (packet_isAck(n)) { /* server */
 		if (pkt->cksum != cksum((void *)pkt + CKSUM_LEN, n - CKSUM_LEN)) {
 			/* discard this packet */
 		}
@@ -222,16 +224,16 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 				r->client->window[(no - 1) % RWS] = pkt;
 				if (r->client->expect == no) {
 					while (r->client->window[(r->client->expect - 1) % RWS] != NULL) {
-						r->client->window[(r->client->expect - 1) % RWS] == NULL
+						r->client->window[(r->client->expect - 1) % RWS] = NULL;
 						r->client->expect++;
 					}
-					r->client->last_recv = r->cliend->expect - 1;
+					r->client->last_recv = r->client->expect - 1;
 					/* send acknowledgment back to server */
 					ack_t ack;
 					ack.len = ACK_LEN;
 					ack.ackno = r->client->expect;
 					ack.cksum = cksum ((const void *)(&ack) + CKSUM_LEN, ACK_LEN - CKSUM_LEN); 
-					conn_sendpkt (r->c, &ack, ACK_LEN));
+					conn_sendpkt (r->c, (const packet_t *)&ack, ACK_LEN);
 				}
 			}
 			else {
@@ -241,7 +243,7 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		ack_t ack;
 		ack.len = ACK_LEN;
 		ack.ackno = r->client->expect;
-		conn_sendpkt (r->c, &ack, ACK_LEN));
+		conn_sendpkt (r->c, (const packet_t *)&ack, ACK_LEN);
 	}	
 	
 }
