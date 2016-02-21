@@ -23,11 +23,13 @@ typedef struct timespec timespec_t;
 typedef struct packet_node pnode_t;
 typedef struct server_buffer buffer_t;
 // typedef struct reliable_state rel_t;
+typedef struct ack_packet ack_t;
 
 
 void buffer_enque(buffer_t *buffer, packet_t *packet);
 packet_t *buffer_deque(buffer_t *buffer);
 bool buffer_isEmpty(buffer_t *buffer);
+bool packet_isAck(packet_t *packet);
 
 
 struct reliable_client { /* receive data packet and send ack */
@@ -50,6 +52,30 @@ struct server_buffer {
 	pnode_t *tail;
 };
 
+struct reliable_server { /* send data packet and wait for ack */
+	seqno_t SWS;
+	seqno_t last_acked;
+	seqno_t last_sent;
+	packet_t **packet_window; /* last_acked < x <= last_sent might retransmit latter, size = SWS*/
+	timespec_t **time_window;
+	buffer_t *buffer; /* from conn_read but not in sliding window, no seq assigned, arbitrary size */
+};
+
+
+struct reliable_state {
+	rel_t *next;          /* Linked list for traversing all connections */
+	rel_t **prev;
+
+	conn_t *c;            /* This is the connection object */
+
+	/* Add your own data fields below this */
+	// seqno_t max_seqno;		/* comes from config: window size */
+	client_t *client;
+	server_t *server;
+
+};
+rel_t *rel_list;
+
 void buffer_enque(buffer_t *buffer, packet_t *packet) {
 	pnode_t *node = malloc(sizeof(pnode_t));
 	node->content = packet;
@@ -71,30 +97,9 @@ bool buffer_isEmpty(buffer_t *buffer) {
 	return (buffer->head == buffer->tail);
 }
 
-struct reliable_server { /* send data packet and wait for ack */
-	seqno_t SWS;
-	seqno_t last_acked;
-	seqno_t last_sent;
-	packet_t **packet_window; /* last_acked < x <= last_sent might retransmit latter, size = SWS*/
-	timespec_t **time_window;
-	buffer_t *buffer; /* from conn_read but not in sliding window, no seq assigned, arbitrary size */
-};
-
-
-struct reliable_state {
-	rel_t *next;          /* Linked list for traversing all connections */
-	rel_t **prev;
-
-	conn_t *c;            /* This is the connection object */
-
-	/* Add your own data fields below this */
-	seqno_t max_seqno;		/* comes from config: window size */
-	client_t *client;
-	server_t *server;
-
-};
-rel_t *rel_list;
-
+bool packet_isAck(packet_t *packet) {
+	return (sizeof(packet) == sizeof(ack_t));
+}
 
 
 
@@ -127,24 +132,24 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
 	}
 	rel_list = r;
 	/* Do any other initialization you need here */
-	r->max_seqno = 2 * cc->window;
+	// r->max_seqno = 2 * cc->window;
 	r->client = malloc(sizeof(client_t));
 	memset (r->client, 0, sizeof (client_t));
 	r->client->RWS = cc->window;
-	r->client->last_recv = 0;
-	r->client->last_legal = 0;
-	r->client->expect = 1;
-	r->client->window = malloc((r->client->RWS + 1) * sizeof(packet_t *));
-	memset (r->client->window, 0, (r->client->RWS + 1) * sizeof(packet_t *));
+	r->client->last_recv = -1;
+	r->client->last_legal = RWS - 1;
+	r->client->expect = 0;
+	r->client->window = malloc((r->client->RWS) * sizeof(packet_t *));
+	memset (r->client->window, 0, (r->client->RWS) * sizeof(packet_t *));
 	r->server = malloc(sizeof(server_t));
 	memset (r->server, 0, sizeof (server_t));
 	r->server->SWS = cc->window;
-	r->server->last_acked = 0;
-	r->server->last_sent = 0;
-	r->server->packet_window = malloc((r->server->SWS + 1) * sizeof(packet_t *));
-	memset (r->server->packet_window, 0, (r->server->SWS + 1) * sizeof(packet_t *));
-	r->server->time_window = malloc((r->server->SWS + 1) * sizeof(timespec_t *));
-	memset (r->server->time_window, 0, (r->server->SWS + 1) * sizeof(timespec_t *));
+	r->server->last_acked = -1;
+	r->server->last_sent = -1;
+	r->server->packet_window = malloc((r->server->SWS) * sizeof(packet_t *));
+	memset (r->server->packet_window, 0, (r->server->SWS) * sizeof(packet_t *));
+	r->server->time_window = malloc((r->server->SWS) * sizeof(timespec_t *));
+	memset (r->server->time_window, 0, (r->server->SWS) * sizeof(timespec_t *));
 	/* might change this to pure string buffer */
 	r->server->buffer = malloc(sizeof(buffer_t));
 	r->server->buffer->head = malloc(sizeof(pnode_t *));
@@ -191,6 +196,21 @@ rel_demux (const struct config_common *cc,
 void
 rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
+	seqno_t no = pkt->seqno;
+	if (packet_isAck(pkt)) { /* server */
+
+	}
+	else { /* client */
+		if ( (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
+			r->client->window[(no - 1) % RWS] = pkt;
+			while (r->client->window[r->client->expect] != NULL) {
+				
+			}
+		}
+		else {
+			/* discard this packet */
+		}
+	}
 }
 
 
