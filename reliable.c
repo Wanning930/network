@@ -15,6 +15,7 @@
 
 #include "rlib.h"
 
+typedef enum{false, true} bool;
 typedef struct reliable_client client_t;
 typedef struct reliable_server server_t;
 typedef uint32_t seqno_t;
@@ -22,6 +23,11 @@ typedef struct timespec timespec_t;
 typedef struct packet_node pnode_t;
 typedef struct server_buffer buffer_t;
 // typedef struct reliable_state rel_t;
+
+
+void buffer_enque(buffer_t *buffer, packet_t *packet);
+packet_t *buffer_deque(buffer_t *buffer);
+bool buffer_isEmpty(buffer_t *buffer);
 
 
 struct reliable_client { /* receive data packet and send ack */
