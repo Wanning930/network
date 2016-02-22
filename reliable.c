@@ -350,11 +350,11 @@ void rel_timer ()
 	clock_gettime(CLOCK_REALTIME, &now);
 	seqno_t i = 0;
 	rel_t *r = rel_list;
-	int to;
+	long to;
 	while (r != NULL) {
 		for (i = r->server->last_acked + 1; i <= r->server->last_sent; i++) {
-			to = now.tv_sec - r->server->time_window[i]->tv_sec;
-			if (to > r->timeout) {
+			to = now.tv_nsec - r->server->time_window[i]->tv_nsec;
+			if (to > (long)r->timeout * 1000000) {
 				conn_sendpkt (r->c, r->server->packet_window[i], ntohs(r->server->packet_window[i]->len));
 				clock_gettime(CLOCK_REALTIME, r->server->time_window[i]);
 			}
