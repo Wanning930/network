@@ -298,7 +298,9 @@ void rel_send(rel_t *r) {
 		r->server->last_sent++;
 		r->server->packet_window[(r->server->last_sent - 1) % SWS] = buffer_deque(r->server->buffer);
 		packet_t *tmp = r->server->packet_window[(r->server->last_sent - 1) % SWS];
-		// fprintf(stderr, "send packet seqno %d\n", tmp->seqno);
+		if (packet_isEof(tmp->len)) {
+			fprintf(stderr, "send a end of file packet %d\n", tmp->seqno);
+		}
 		tmp->ackno = 0;
 		tmp->seqno = htonl(r->server->last_sent);
 		tmp->len = htons(tmp->len);
