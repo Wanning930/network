@@ -87,7 +87,7 @@ void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
 	assert(len <= 500);
 	pnode_t *node = malloc(sizeof(pnode_t));
 	node->content = malloc(sizeof(char) * len);
-	memcopy(node->content, data, sizeof(char) * len);
+	memcpy(node->content, data, sizeof(char) * len);
 	node->len = len;
 	node->next = NULL;
 	buffer->tail->next = node;
@@ -97,7 +97,7 @@ void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
 void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
 	pnode_t *node = malloc(sizeof(pnode_t));
 	node->content = malloc(packet->len - 12);
-	memcopy(node->content, packet->data, sizeof(node->content));
+	memcpy(node->content, packet->data, sizeof(node->content));
 	node->len = packet->len - 12; /* payload */
 	node->next = NULL;
 	buffer->tail->next = node;
@@ -110,7 +110,7 @@ packet_t *buffer_deque(buffer_t *buffer) {
 	buffer->head = buffer->head->next;
 	packet_t *newpt = malloc(pt->len + 12);
 	memset(newpt, 0, pt->len + 12);
-	memcopy(newpt->data, pt->content, (size_t)(pt->len));
+	memcpy(newpt->data, pt->content, (size_t)(pt->len));
 	newpt->len = pt->len + 12; /* payload + 12 */
 	free(pt->content);
 	free(pt);
@@ -284,7 +284,7 @@ void rel_send(rel_t *r) {
 		tmp->seqno = r->server->last_sent;
 		conn_sendpkt (r->c, tmp, tmp->len);
 		timespec_t *ti = malloc(sizeof(timespec_t));
-		clock_gettime (NEED_CLOCK_GETTIME, ti);
+		clock_gettime (CLOCK_REALTIME, ti);
 		r->server->time_window[(r->server->last_sent - 1) % SWS] = ti;
 	}
 }
