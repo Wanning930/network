@@ -301,6 +301,9 @@ void rel_send(rel_t *r) {
 		if (packet_isEof(tmp->len)) {
 			fprintf(stderr, "send a end of file packet %d\n", tmp->seqno);
 		}
+		if (tmp->seqno == 86) {
+			fprintf(stderr, "bug comes!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+		}
 		tmp->ackno = 0;
 		tmp->seqno = htonl(r->server->last_sent);
 		tmp->len = htons(tmp->len);
