@@ -211,6 +211,12 @@ void rel_destroy (rel_t *r)
 	free(r->server);
 }
 
+void rel_demux (const struct config_common *cc,
+	   const struct sockaddr_storage *ss,
+	   packet_t *pkt, size_t len)
+{
+}
+
 void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
 	seqno_t SWS = r->server->SWS;
