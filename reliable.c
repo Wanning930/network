@@ -97,7 +97,7 @@ void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
 void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
 	pnode_t *node = malloc(sizeof(pnode_t));
 	node->content = malloc(packet->len - 12);
-	memcpy(node->content, packet->data, sizeof(node->content));
+	memcpy(node->content, packet->data, packet->len - 12);
 	node->len = packet->len - 12; /* payload */
 	node->next = NULL;
 	buffer->tail->next = node;
@@ -221,56 +221,51 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
 	seqno_t SWS = r->server->SWS;
 	seqno_t RWS = r->client->RWS;
+	if (pkt->cksum != cksum((void *)pkt + CKSUM_LEN, n - CKSUM_LEN)) {
+		/* discard this packet */
+	}
+	pkt->seqno = ntohl(pkt->seqno);
 	seqno_t no = pkt->seqno;
+	pkt->len = ntohs(pkt->len);
 	if (packet_isAck(n)) { /* server */
-		if (pkt->cksum != cksum((void *)pkt + CKSUM_LEN, n - CKSUM_LEN)) {
-			/* discard this packet */
-		}
-		else {
-			while (pkt->ackno - r->server->last_acked > 1) {
-				r->server->last_acked++;
-				if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
-					r->server->eof = true;
-				}
-				free(r->server->time_window[(r->server->last_acked - 1) % SWS]);
-				r->server->time_window[(r->server->last_acked - 1) % SWS] = NULL;
-				free(r->server->packet_window[(r->server->last_acked - 1) % SWS]);
-				r->server->packet_window[(r->server->last_acked - 1) % SWS] = NULL;
+		while (pkt->ackno - r->server->last_acked > 1) {
+			r->server->last_acked++;
+			if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
+				r->server->eof = true;
 			}
-			rel_send(r);
+			free(r->server->time_window[(r->server->last_acked - 1) % SWS]);
+			r->server->time_window[(r->server->last_acked - 1) % SWS] = NULL;
+			free(r->server->packet_window[(r->server->last_acked - 1) % SWS]);
+			r->server->packet_window[(r->server->last_acked - 1) % SWS] = NULL;
 		}
+		rel_send(r);
 	}
 	else { /* client */
-		if (pkt->cksum != cksum((void *)pkt + CKSUM_LEN, n - CKSUM_LEN)) { 
-			/* discard this packet */
+		if (packet_isEof(n)) {
+			r->client->eof = true;
+		}
+		if ( (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
+			/* in the window */
+			if (r->client->window[(no - 1) % RWS] != NULL) {
+				assert(r->client->window[(no - 1) % RWS]->seqno == no);
+			}
+			r->client->window[(no - 1) % RWS] = pkt;
+			if (r->client->expect == no) {
+				while (r->client->window[(r->client->expect - 1) % RWS] != NULL) {
+					buffer_enque_p(r->client->buffer, r->client->window[(r->client->expect - 1) % RWS]);
+					r->client->window[(r->client->expect - 1) % RWS] = NULL;
+					r->client->expect++;
+				}
+				r->client->last_recv = r->client->expect - 1;				
+			}
 		}
 		else {
-			if (packet_isEof(n)) {
-				r->client->eof = true;
-			}
-			if ( (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
-				/* in the window */
-				if (r->client->window[(no - 1) % RWS] != NULL) {
-					assert(r->client->window[(no - 1) % RWS]->seqno == no);
-				}
-				r->client->window[(no - 1) % RWS] = pkt;
-				if (r->client->expect == no) {
-					while (r->client->window[(r->client->expect - 1) % RWS] != NULL) {
-						buffer_enque_p(r->client->buffer, r->client->window[(r->client->expect - 1) % RWS]);
-						r->client->window[(r->client->expect - 1) % RWS] = NULL;
-						r->client->expect++;
-					}
-					r->client->last_recv = r->client->expect - 1;				
-				}
-			}
-			else {
-				/* discard this packet */
-			}
+			/* discard this packet */
 		}
 		/* send acknowledgment back to server */
 		ack_t ack;
-		ack.len = ACK_LEN;
-		ack.ackno = r->client->expect;
+		ack.len = htons(ACK_LEN);
+		ack.ackno = htonl(r->client->expect);
 		ack.cksum = cksum ((const void *)(&ack) + CKSUM_LEN, ACK_LEN - CKSUM_LEN); 
 		conn_sendpkt (r->c, (const packet_t *)&ack, ACK_LEN);
 	}	
@@ -285,10 +280,11 @@ void rel_send(rel_t *r) {
 		r->server->last_sent++;
 		r->server->packet_window[(r->server->last_sent - 1) % SWS] = buffer_deque(r->server->buffer);
 		packet_t *tmp = r->server->packet_window[(r->server->last_sent - 1) % SWS];
-		tmp->cksum = cksum ((const void *)(tmp) + CKSUM_LEN, tmp->len - CKSUM_LEN);
 		tmp->ackno = 0;
-		tmp->seqno = r->server->last_sent;
-		conn_sendpkt (r->c, tmp, tmp->len);
+		tmp->seqno = htonl(r->server->last_sent);
+		tmp->len = htons(tmp->len);
+		tmp->cksum = cksum ((const void *)(tmp) + CKSUM_LEN, tmp->len - CKSUM_LEN);
+		conn_sendpkt (r->c, tmp, ntohs(tmp->len));
 		timespec_t *ti = malloc(sizeof(timespec_t));
 		clock_gettime (CLOCK_REALTIME, ti);
 		r->server->time_window[(r->server->last_sent - 1) % SWS] = ti;
