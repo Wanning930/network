@@ -85,7 +85,6 @@ rel_t *rel_list;
 
 void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
 	assert(len <= 500);
-	// fprintf(stderr, "buffer enque char: %s\n", data);
 	pnode_t *node = malloc(sizeof(pnode_t));
 	node->content = malloc(sizeof(char) * len);
 	memcpy(node->content, data, sizeof(char) * len);
@@ -93,20 +92,16 @@ void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
 	node->next = NULL;
 	buffer->tail->next = node;
 	buffer->tail = buffer->tail->next;
-	// fprintf(stderr, "char enque tail: %s\n", buffer->tail->content);
 }
 
 void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
-	// fprintf(stderr, "buffer enque packet: %s\n", packet->data);
 	pnode_t *node = malloc(sizeof(pnode_t));
 	node->content = malloc(packet->len - 12);
 	memcpy(node->content, packet->data, packet->len - 12);
 	node->len = packet->len - 12; /* payload */
-	fprintf(stderr, "buffer enque len %d\n", node->len);
 	node->next = NULL;
 	buffer->tail->next = node;
 	buffer->tail = buffer->tail->next;
-	// fprintf(stderr, "packet enque tail: %s\n", buffer->tail->content);
 
 }
 
@@ -116,7 +111,6 @@ packet_t *buffer_deque(buffer_t *buffer) {
 	buffer->head = buffer->head->next;
 	packet_t *newpt = malloc(pt->len + 12);
 	memset(newpt, 0, pt->len + 12);
-	// fprintf(stderr, "buffer deque node: %s\n", pt->content);
 	memcpy(newpt->data, pt->content, (size_t)(pt->len));
 	newpt->len = pt->len + 12; /* payload + 12 */
 	free(pt->content);
@@ -236,7 +230,6 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	seqno_t no = pkt->seqno;
 	pkt->len = ntohs(pkt->len);
 
-	fprintf(stderr, "recv packet len %d\n", pkt->len);
 
 	if (packet_isAck(n)) { /* server */
 		while (pkt->ackno - r->server->last_acked > 1) {
@@ -262,6 +255,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 			}
 			r->client->window[(no - 1) % RWS] = pkt;
 			if (r->client->expect == no) {
+				fprintf(stderr, "expect %d last recv %d\n", r->client->expect, r->client->last_recv);
 				while (r->client->window[(r->client->expect - 1) % RWS] != NULL) {
 					buffer_enque_p(r->client->buffer, r->client->window[(r->client->expect - 1) % RWS]);
 					r->client->window[(r->client->expect - 1) % RWS] = NULL;
@@ -293,7 +287,6 @@ void rel_send(rel_t *r) {
 		r->server->last_sent++;
 		r->server->packet_window[(r->server->last_sent - 1) % SWS] = buffer_deque(r->server->buffer);
 		packet_t *tmp = r->server->packet_window[(r->server->last_sent - 1) % SWS];
-		fprintf(stderr, "send packet len: %d\n", tmp->len);
 		tmp->ackno = 0;
 		tmp->seqno = htonl(r->server->last_sent);
 		tmp->len = htons(tmp->len);
@@ -313,7 +306,6 @@ void rel_read (rel_t *s)
 	memset(buf, 0, sizeof(char) * 500);
 	uint16_t length = 0;
 	while ((length = conn_input(s->c, (void *)buf, 500)) != 0) {
-		fprintf(stderr, "conn_input len %d\n", length);
 		buffer_enque_c(s->server->buffer, buf, length); 
 		memset(buf, 0, sizeof(char) * 500);
 	}
@@ -327,7 +319,6 @@ void rel_output (rel_t *r)
 	while(!buffer_isEmpty(r->client->buffer)) {
 		if (conn_bufspace(r->c) >= r->client->buffer->head->next->len) {
 			tmp = buffer_deque(r->client->buffer);
-			fprintf(stderr, "conn_output len %d\n", tmp->len);
 
 			conn_output(r->c, (void *)tmp->data, (size_t)tmp->len - 12);
 			free(tmp);
