@@ -356,7 +356,8 @@ void rel_timer ()
 	while (r != NULL) {
 		for (i = r->server->last_acked + 1; i <= r->server->last_sent; i++) {
 			idx = (i - 1) % r->server->SWS;
-			interval = now.tv_nsec - r->server->time_window[idx]->tv_nsec;
+			interval = (now.tv_sec * 1000000 + now.tv_nsec);
+			interval -= r->server->time_window[idx]->tv_nsec * 1000000 + r->server->time_window[idx]->tv_nsec;
 			fprintf(stderr, "rel_timer interval %li ns.\n", interval);
 			if (interval > (long)r->timeout * 1000000) {
 				fprintf(stderr, "timeout seqno %d\n", i);
