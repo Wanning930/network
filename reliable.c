@@ -85,6 +85,7 @@ rel_t *rel_list;
 
 void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
 	assert(len <= 500);
+	fprintf(stderr, "buffer enque char: %s\n", data);
 	pnode_t *node = malloc(sizeof(pnode_t));
 	node->content = malloc(sizeof(char) * len);
 	memcpy(node->content, data, sizeof(char) * len);
@@ -92,6 +93,7 @@ void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
 	node->next = NULL;
 	buffer->tail->next = node;
 	buffer->tail = buffer->tail->next;
+	fprintf(stderr, "char enque tail: %s\n", buffer->tail->content);
 }
 
 void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
@@ -103,7 +105,7 @@ void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
 	node->next = NULL;
 	buffer->tail->next = node;
 	buffer->tail = buffer->tail->next;
-	fprintf(stderr, "buffer enque: %s\n", buffer->tail->content);
+	fprintf(stderr, "packet enque tail: %s\n", buffer->tail->content);
 
 }
 
@@ -309,7 +311,8 @@ void rel_read (rel_t *s)
 	memset(buf, 0, sizeof(char) * 500);
 	uint16_t length = 0;
 	while ((length = conn_input(s->c, (void *)buf, 500)) != 0) {
-		buffer_enque_c(s->server->buffer, buf, length); /////////////////?????????????????
+		fprintf(stderr, "conn_input buf char[] %s\n", buf);
+		buffer_enque_c(s->server->buffer, buf, length); 
 		memset(buf, 0, sizeof(char) * 500);
 	}
 	free(buf);
