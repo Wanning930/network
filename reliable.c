@@ -347,7 +347,6 @@ void rel_output (rel_t *r)
 void rel_timer ()
 {
 	/* Retransmit any packets that need to be retransmitted */
-	fprintf(stderr, "rel_timer \n");
 	timespec_t now;
 	clock_gettime(CLOCK_REALTIME, &now);
 	seqno_t i = 0;
@@ -358,6 +357,7 @@ void rel_timer ()
 		for (i = r->server->last_acked + 1; i <= r->server->last_sent; i++) {
 			idx = (i - 1) % r->server->SWS;
 			interval = now.tv_nsec - r->server->time_window[idx]->tv_nsec;
+			fprintf(stderr, "rel_timer interval %li ns.\n", interval);
 			if (interval > (long)r->timeout * 1000000) {
 				fprintf(stderr, "timeout seqno %d\n", i);
 				conn_sendpkt (r->c, r->server->packet_window[idx], ntohs(r->server->packet_window[idx]->len));
