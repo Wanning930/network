@@ -236,7 +236,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	if (pkt->cksum != cksum((void *)pkt + CKSUM_LEN, n - CKSUM_LEN)) {
 		/* discard this packet */
 	}
-	// fprintf(stderr, "recv packet seqno %d\n", pkt->seqno);
+	fprintf(stderr, "recv packet seqno %d\n", pkt->seqno);
 	pkt->seqno = ntohl(pkt->seqno);
 	pkt->ackno = ntohl(pkt->ackno);
 	seqno_t no = pkt->seqno;
