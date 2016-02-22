@@ -80,12 +80,12 @@ struct reliable_state {
 	/* Add your own data fields below this */
 	client_t *client;
 	server_t *server;
-
+	int timeout;
 };
 rel_t *rel_list;
 
 void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
-	fprintf(stderr, "------------ enque len %u\n", (unsigned int)len);
+	// fprintf(stderr, "------------ enque len %u\n", (unsigned int)len);
 	assert(len <= 500);
 	pnode_t *node = malloc(sizeof(pnode_t));
 	memset(node, 0, sizeof(pnode_t));
@@ -182,6 +182,7 @@ rel_t * rel_create (conn_t *c, const struct sockaddr_storage *ss, const struct c
 	r->client->eof = false;
 
 	/* Do server initialization */
+	r->timeout = cc->timeout;
 	r->server = malloc(sizeof(server_t));
 	memset (r->server, 0, sizeof (server_t));
 	r->server->SWS = cc->window;
@@ -344,6 +345,20 @@ void rel_output (rel_t *r)
 
 void rel_timer ()
 {
-  /* Retransmit any packets that need to be retransmitted */
-
+	/* Retransmit any packets that need to be retransmitted */
+	timespec_t now;
+	clock_gettime(CLOCK_REALTIME, &now);
+	seqno_t i = 0;
+	rel_t *r = rel_list;
+	int to;
+	while (r != NULL) {
+		for (i = r->server->last_acked + 1; i <= r->server->last_sent; i++) {
+			to = now.tv_sec - r->server->time_window[i]->tv_sec;
+			if (to > r->timeout) {
+				conn_sendpkt (r->c, r->server->packet_window[i], ntohs(r->server->packet_window[i]->len));
+				clock_gettime(CLOCK_REALTIME, r->server->time_window[i]);
+			}
+		}
+		r = r->next;
+	}
 }
