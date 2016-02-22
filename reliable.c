@@ -35,7 +35,6 @@ packet_t *buffer_deque(buffer_t *buffer);
 bool buffer_isEmpty(buffer_t *buffer);
 bool packet_isAck(size_t n);
 void rel_send(rel_t *r);
-void rel_store(rel_t *r, packet_t *packet);
 bool packet_isEof(size_t n);
 
 struct reliable_client { /* receive data packet and send ack */
@@ -164,7 +163,7 @@ rel_t * rel_create (conn_t *c, const struct sockaddr_storage *ss, const struct c
 	r->client->RWS = cc->window;
 	r->client->last_recv = 0;
 	r->client->last_legal = r->client->RWS;
-	r->client->expect = 0;
+	r->client->expect = 1;
 	r->client->window = malloc((r->client->RWS) * sizeof(packet_t *));
 	memset (r->client->window, 0, (r->client->RWS) * sizeof(packet_t *));
 	r->client->buffer = malloc(sizeof(buffer_t));
@@ -187,7 +186,7 @@ rel_t * rel_create (conn_t *c, const struct sockaddr_storage *ss, const struct c
 	r->server->buffer->head = malloc(sizeof(pnode_t));
 	memset (r->server->buffer->head, 0, sizeof(pnode_t));
 	r->server->buffer->tail = r->server->buffer->head;
-	r->server->eof = true;
+	r->server->eof = false;
 	return r;
 }
 
@@ -200,6 +199,9 @@ void rel_destroy (rel_t *r)
 	conn_destroy (r->c);
 	/* Free any other allocated memory here */
 	free(r->client->window);
+	assert(buffer_isEmpty(r->client->buffer));
+	free(r->client->buffer->head);
+	free(r->client->buffer);
 	free(r->client);
 	free(r->server->packet_window);
 	free(r->server->time_window);
@@ -248,7 +250,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 				r->client->window[(no - 1) % RWS] = pkt;
 				if (r->client->expect == no) {
 					while (r->client->window[(r->client->expect - 1) % RWS] != NULL) {
-						rel_store (r, r->client->window[(r->client->expect - 1) % RWS]);
+						buffer_enque_p(r->client->buffer, r->client->window[(r->client->expect - 1) % RWS]);
 						r->client->window[(r->client->expect - 1) % RWS] = NULL;
 						r->client->expect++;
 					}
@@ -287,9 +289,6 @@ void rel_send(rel_t *r) {
 	}
 }
 
-void rel_store(rel_t *r, packet_t *packet) {
-	buffer_enque_p(r->client->buffer, packet);
-}
 
 void rel_read (rel_t *s)
 {
@@ -299,7 +298,7 @@ void rel_read (rel_t *s)
 	uint16_t length = 0;
 	while ((length = conn_input(s->c, (void *)buf, 500)) != 0) {
 		buffer_enque_c(s->server->buffer, buf, length); /////////////////?????????????????
-		memset(buf, 0, sizeof(char) * length);
+		memset(buf, 0, sizeof(char) * 500);
 	}
 	free(buf);
 	rel_send(s);
