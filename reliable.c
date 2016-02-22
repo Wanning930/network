@@ -36,6 +36,7 @@ bool buffer_isEmpty(buffer_t *buffer);
 bool packet_isAck(size_t n);
 void rel_send(rel_t *r);
 void rel_store(rel_t *r, packet_t *packet);
+bool packet_isEof(size_t n);
 
 struct reliable_client { /* receive data packet and send ack */
 	seqno_t RWS;
@@ -44,6 +45,7 @@ struct reliable_client { /* receive data packet and send ack */
 	seqno_t expect;
 	packet_t **window; /* ordered and overwirted, size = RWS */
 	buffer_t *buffer;
+	bool eof;
 };
 
 struct packet_node {
@@ -65,6 +67,7 @@ struct reliable_server { /* send data packet and wait for ack */
 	packet_t **packet_window; /* last_acked < x <= last_sent might retransmit latter, size = SWS*/
 	timespec_t **time_window;
 	buffer_t *buffer; /* from conn_read but not in sliding window, no seq assigned, arbitrary size */
+	bool eof;
 };
 
 
@@ -124,6 +127,10 @@ bool packet_isAck(size_t n) {
 	return (n == sizeof(ack_t));
 }
 
+bool packet_isEof(size_t n) {
+	return n == 12;
+}
+
 
 
 /* Creates a new reliable protocol session, returns NULL on failure.
@@ -164,6 +171,7 @@ rel_t * rel_create (conn_t *c, const struct sockaddr_storage *ss, const struct c
 	r->client->buffer->head = malloc(sizeof(pnode_t));
 	memset(r->client->buffer->head, 0, sizeof(pnode_t));
 	r->client->buffer->tail = r->client->buffer->head;
+	r->client->eof = false;
 
 	/* Do server initialization */
 	r->server = malloc(sizeof(server_t));
@@ -179,6 +187,7 @@ rel_t * rel_create (conn_t *c, const struct sockaddr_storage *ss, const struct c
 	r->server->buffer->head = malloc(sizeof(pnode_t));
 	memset (r->server->buffer->head, 0, sizeof(pnode_t));
 	r->server->buffer->tail = r->server->buffer->head;
+	r->server->eof = true;
 	return r;
 }
 
@@ -212,6 +221,9 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		else {
 			while (pkt->ackno - r->server->last_acked > 1) {
 				r->server->last_acked++;
+				if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
+					r->server->eof = true;
+				}
 				free(r->server->time_window[(r->server->last_acked - 1) % SWS]);
 				r->server->time_window[(r->server->last_acked - 1) % SWS] = NULL;
 				free(r->server->packet_window[(r->server->last_acked - 1) % SWS]);
@@ -225,6 +237,9 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 			/* discard this packet */
 		}
 		else {
+			if (packet_isEof(n)) {
+				r->client->eof = true;
+			}
 			if ( (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
 				/* in the window */
 				if (r->client->window[(no - 1) % RWS] != NULL) {
@@ -251,7 +266,9 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		ack.cksum = cksum ((const void *)(&ack) + CKSUM_LEN, ACK_LEN - CKSUM_LEN); 
 		conn_sendpkt (r->c, (const packet_t *)&ack, ACK_LEN);
 	}	
-	
+	if (r->server->eof && r->client->eof && r->server->last_sent == r->server->last_acked) {
+		rel_destroy(r);
+	}
 }
 
 void rel_send(rel_t *r) {
