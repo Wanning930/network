@@ -111,7 +111,7 @@ void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
 
 packet_t *buffer_deque(buffer_t *buffer) {
 	assert(!buffer_isEmpty(buffer));
-	pnode_t *pt = buffer->head;
+	pnode_t *pt = buffer->head->next;
 	buffer->head = buffer->head->next;
 	packet_t *newpt = malloc(pt->len + 12);
 	memset(newpt, 0, pt->len + 12);
@@ -235,7 +235,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	seqno_t no = pkt->seqno;
 	pkt->len = ntohs(pkt->len);
 
-	fprintf(stderr, "pkt data is %s\n", pkt->data);
+	fprintf(stderr, "recv packet is %s\n", pkt->data);
 
 	if (packet_isAck(n)) { /* server */
 		while (pkt->ackno - r->server->last_acked > 1) {
@@ -296,6 +296,7 @@ void rel_send(rel_t *r) {
 		tmp->seqno = htonl(r->server->last_sent);
 		tmp->len = htons(tmp->len);
 		tmp->cksum = cksum ((const void *)(tmp) + CKSUM_LEN, tmp->len - CKSUM_LEN);
+		fprintf(stderr, "send packet tmp: %s\n", tmp->data);
 		conn_sendpkt (r->c, tmp, ntohs(tmp->len));
 		timespec_t *ti = malloc(sizeof(timespec_t));
 		clock_gettime (CLOCK_REALTIME, ti);
