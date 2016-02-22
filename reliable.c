@@ -284,6 +284,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 
 void rel_send(rel_t *r) {
 	seqno_t SWS = r->server->SWS;
+	fprintf(stderr, "%d %d\n", r->server->last_sent- r->server->last_acked, !buffer_isEmpty(r->server->buffer));
 	while ((r->server->last_sent - r->server->last_acked < SWS) && (!buffer_isEmpty(r->server->buffer))) {
 		r->server->last_sent++;
 		r->server->packet_window[(r->server->last_sent - 1) % SWS] = buffer_deque(r->server->buffer);
@@ -307,6 +308,7 @@ void rel_read (rel_t *s)
 	memset(buf, 0, sizeof(char) * 500);
 	uint16_t length = 0;
 	while ((length = conn_input(s->c, (void *)buf, 500)) != 0) {
+		fprintf(stderr, "len:%d\n", length);
 		buffer_enque_c(s->server->buffer, buf, length); 
 		memset(buf, 0, sizeof(char) * 500);
 	}
