@@ -351,14 +351,14 @@ void rel_timer ()
 	seqno_t i = 0;
 	rel_t *r = rel_list;
 	long interval;
-	timespec_t *tmp = NULL;
+	int idx = 0;
 	while (r != NULL) {
 		for (i = r->server->last_acked + 1; i <= r->server->last_sent; i++) {
-			tmp = r->server->time_window[(i - 1) % r->server->SWS];
-			interval = now.tv_nsec - tmp->tv_nsec;
+			idx = (i - 1) % r->server->SWS;
+			interval = now.tv_nsec - r->server->time_window[idx]->tv_nsec;
 			if (interval > (long)r->timeout * 1000000) {
-				conn_sendpkt (r->c, tmp, ntohs(tmp->len));
-				clock_gettime(CLOCK_REALTIME, tmp);
+				conn_sendpkt (r->c, r->server->packet_window[idx], ntohs(r->server->packet_window[idx]->len));
+				clock_gettime(CLOCK_REALTIME, r->server->time_window[idx]);
 			}
 		}
 		r = r->next;
