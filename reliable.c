@@ -239,13 +239,13 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	pkt->ackno = ntohl(pkt->ackno);
 	seqno_t no = pkt->seqno;
 	pkt->len = ntohs(pkt->len);
-	// fprintf(stderr, "recv packet seqno decoded %d\n", pkt->seqno);
 
 	if (packet_isAck(n)) { /* server */
 		while (pkt->ackno - r->server->last_acked > 1) {
 			r->server->last_acked++;
 			if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
 				r->server->eof = true;
+				fprintf(stderr, "server eof sent has been acked %d\n", r->server->last_acked);
 			}
 			free(r->server->time_window[(r->server->last_acked - 1) % SWS]);
 			r->server->time_window[(r->server->last_acked - 1) % SWS] = NULL;
@@ -257,6 +257,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	else { /* client */
 		if (packet_isEof(n)) {
 			r->client->eof = true;
+			fprintf(stderr, "client received an eof %d\n", pkt->seqno);
 		}
 		if ( (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
 			/* in the window */
