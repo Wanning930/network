@@ -299,14 +299,14 @@ void rel_send(rel_t *r) {
 		r->server->last_sent++;
 		r->server->packet_window[(r->server->last_sent - 1) % SWS] = buffer_deque(r->server->buffer);
 		packet_t *tmp = r->server->packet_window[(r->server->last_sent - 1) % SWS];
+		if (packet_isEof(tmp->len)) {
+			fprintf(stderr, "send a end of file packet %d\n", r->server->last_sent);
+		}
 		if (tmp->seqno == 0x86) {
 		fprintf(stderr, "bug comes!!!!!!!!!!!!!!!!!!!!!!!!! %d\n", r->server->last_sent);
 		}
 		tmp->ackno = 0;
 		tmp->seqno = htonl(r->server->last_sent);
-		if (packet_isEof(tmp->len)) {
-			fprintf(stderr, "send a end of file packet %d\n", tmp->seqno);
-		}
 		tmp->len = htons(tmp->len);
 		tmp->cksum = cksum ((const void *)(tmp) + CKSUM_LEN, tmp->len - CKSUM_LEN);
 		conn_sendpkt (r->c, tmp, ntohs(tmp->len));
