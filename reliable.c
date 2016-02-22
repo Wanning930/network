@@ -243,10 +243,10 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	if (packet_isAck(n)) { /* server */
 		while (pkt->ackno - r->server->last_acked > 1) {
 			r->server->last_acked++;
-			if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
-				r->server->eof = true;
-				fprintf(stderr, "server eof sent has been acked %d\n", r->server->last_acked);
-			}
+			// if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
+			// 	r->server->eof = true;
+			// 	fprintf(stderr, "server eof sent has been acked %d\n", r->server->last_acked);
+			// }
 			free(r->server->time_window[(r->server->last_acked - 1) % SWS]);
 			r->server->time_window[(r->server->last_acked - 1) % SWS] = NULL;
 			free(r->server->packet_window[(r->server->last_acked - 1) % SWS]);
@@ -300,11 +300,12 @@ void rel_send(rel_t *r) {
 		r->server->packet_window[(r->server->last_sent - 1) % SWS] = buffer_deque(r->server->buffer);
 		packet_t *tmp = r->server->packet_window[(r->server->last_sent - 1) % SWS];
 		if (packet_isEof(tmp->len)) {
-			fprintf(stderr, "send a end of file packet %d\n", r->server->last_sent);
+			r->server->eof = true;
+			// fprintf(stderr, "send a end of file packet %d\n", r->server->last_sent);
 		}
-		if (tmp->seqno == 0x86) {
-		fprintf(stderr, "bug comes!!!!!!!!!!!!!!!!!!!!!!!!! %d\n", r->server->last_sent);
-		}
+		// if (tmp->seqno == 0x86) {
+		// fprintf(stderr, "bug comes!!!!!!!!!!!!!!!!!!!!!!!!! %d\n", r->server->last_sent);
+		// }
 		tmp->ackno = 0;
 		tmp->seqno = htonl(r->server->last_sent);
 		tmp->len = htons(tmp->len);
