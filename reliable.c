@@ -328,7 +328,8 @@ void rel_output (rel_t *r)
 		if (conn_bufspace(r->c) >= r->client->buffer->head->next->len) {
 			tmp = buffer_deque(r->client->buffer);
 			fprintf(stderr, "conn_output len %d\n", tmp->len);
-			conn_output(r->c, (void *)tmp->data, (size_t)tmp->len);
+
+			conn_output(r->c, (void *)tmp->data, (size_t)tmp->len - 12);
 			free(tmp);
 			tmp = NULL;
 		}
