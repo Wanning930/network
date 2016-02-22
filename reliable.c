@@ -316,6 +316,8 @@ void rel_read (rel_t *s)
 	while ((length = conn_input(s->c, (void *)buf, 500)) != 0) {
 		if (length == -1) { /* end of file */
 			length = 0;
+			buffer_enque_c(s->server->buffer, buf, 0); 
+			break;
 		}
 		buffer_enque_c(s->server->buffer, buf, (uint16_t)length); 
 		memset(buf, 0, sizeof(char) * 500);
