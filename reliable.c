@@ -293,6 +293,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 }
 
 void rel_send(rel_t *r) {
+		fprintf(stderr, "hello world!!!!!!!!!!!!!!!!!!!!!!!!! \n", r->server->last_sent);
 	seqno_t SWS = r->server->SWS;
 	while ((r->server->last_sent - r->server->last_acked < SWS) && (!buffer_isEmpty(r->server->buffer))) {
 		r->server->last_sent++;
@@ -301,9 +302,9 @@ void rel_send(rel_t *r) {
 		if (packet_isEof(tmp->len)) {
 			fprintf(stderr, "send a end of file packet %d\n", tmp->seqno);
 		}
-		if (tmp->seqno == 86) {
-			fprintf(stderr, "bug comes!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-		}
+		// if (tmp->seqno == 86) {
+		fprintf(stderr, "bug comes!!!!!!!!!!!!!!!!!!!!!!!!! %d\n", r->server->last_sent);
+		// }
 		tmp->ackno = 0;
 		tmp->seqno = htonl(r->server->last_sent);
 		tmp->len = htons(tmp->len);
