@@ -312,7 +312,7 @@ void rel_read (rel_t *s)
 	memset(buf, 0, sizeof(char) * 500);
 	uint16_t length = 0;
 	while ((length = conn_input(s->c, (void *)buf, 500)) != 0) {
-		// fprintf(stderr, "conn_input buf char[] %s\n", buf);
+		fprintf(stderr, "conn_input len %d\n", length);
 		buffer_enque_c(s->server->buffer, buf, length); 
 		memset(buf, 0, sizeof(char) * 500);
 	}
