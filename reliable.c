@@ -238,7 +238,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	pkt->ackno = ntohl(pkt->ackno);
 	seqno_t no = pkt->seqno;
 	pkt->len = ntohs(pkt->len);
-
+	fprintf(stderr, "recv packet seqno %d\n", pkt->seqno);
 
 	if (packet_isAck(n)) { /* server */
 		while (pkt->ackno - r->server->last_acked > 1) {
@@ -296,6 +296,7 @@ void rel_send(rel_t *r) {
 		r->server->last_sent++;
 		r->server->packet_window[(r->server->last_sent - 1) % SWS] = buffer_deque(r->server->buffer);
 		packet_t *tmp = r->server->packet_window[(r->server->last_sent - 1) % SWS];
+		fprintf(stderr, "send packet seqno %d\n", tmp->seqno);
 		tmp->ackno = 0;
 		tmp->seqno = htonl(r->server->last_sent);
 		tmp->len = htons(tmp->len);
@@ -357,6 +358,7 @@ void rel_timer ()
 			idx = (i - 1) % r->server->SWS;
 			interval = now.tv_nsec - r->server->time_window[idx]->tv_nsec;
 			if (interval > (long)r->timeout * 1000000) {
+				fprintf(stderr, "timeout seqno %d\n", i);
 				conn_sendpkt (r->c, r->server->packet_window[idx], ntohs(r->server->packet_window[idx]->len));
 				clock_gettime(CLOCK_REALTIME, r->server->time_window[idx]);
 			}
