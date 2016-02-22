@@ -261,7 +261,8 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 					r->client->window[(r->client->expect - 1) % RWS] = NULL;
 					r->client->expect++;
 				}
-				r->client->last_recv = r->client->expect - 1;				
+				r->client->last_recv = r->client->expect - 1;	
+				r->client->last_legal = r->client->last_recv + RWS;			
 				rel_output(r);
 			}
 		}
