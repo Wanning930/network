@@ -246,7 +246,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		while (pkt->ackno - r->server->last_acked > 1) {
 			r->server->last_acked++;
 			if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
-				r->server->eof = true;
+				assert(r->server->eof == true);
 				fprintf(stderr, "server eof sent has been acked %d\n", r->server->last_acked);
 				fprintf(stderr, "server flag %d, %d\n", r->server->eof, r->client->eof);
 			}
@@ -326,6 +326,9 @@ void rel_send(rel_t *r) {
 void rel_read (rel_t *s)
 {
 	/* need to transmit a packet for the first transmission */
+	if (s->server->eof) {
+		return;
+	}
 	char *buf = malloc(sizeof(char) * 500);
 	memset(buf, 0, sizeof(char) * 500);
 	int length = 0;
@@ -333,7 +336,7 @@ void rel_read (rel_t *s)
 		if (length == -1) { /* end of file */
 			length = 0;
 			s->server->eof = true;
-			buffer_enque_c(s->server->buffer, buf, 0); 
+			// buffer_enque_c(s->server->buffer, buf, 0); 
 			break;
 		}
 		buffer_enque_c(s->server->buffer, buf, (uint16_t)length); 
