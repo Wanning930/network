@@ -234,11 +234,12 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	if (pkt->cksum != cksum((void *)pkt + CKSUM_LEN, n - CKSUM_LEN)) {
 		/* discard this packet */
 	}
+	fprintf(stderr, "recv packet seqno %d\n", pkt->seqno);
 	pkt->seqno = ntohl(pkt->seqno);
 	pkt->ackno = ntohl(pkt->ackno);
 	seqno_t no = pkt->seqno;
 	pkt->len = ntohs(pkt->len);
-	fprintf(stderr, "recv packet seqno %d\n", pkt->seqno);
+	fprintf(stderr, "recv packet seqno decoded %d\n", pkt->seqno);
 
 	if (packet_isAck(n)) { /* server */
 		while (pkt->ackno - r->server->last_acked > 1) {
