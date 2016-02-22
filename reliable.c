@@ -86,8 +86,14 @@ rel_t *rel_list;
 void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
 	assert(len <= 500);
 	pnode_t *node = malloc(sizeof(pnode_t));
-	node->content = malloc(sizeof(char) * len);
-	memcpy(node->content, data, sizeof(char) * len);
+	memset(node, 0, sizeof(pnode_t));
+	if (len == 0) {
+		node->content = NULL;
+	}
+	else {
+		node->content = malloc(sizeof(char) * len);
+		memcpy(node->content, data, sizeof(char) * len);
+	}
 	node->len = len;
 	node->next = NULL;
 	buffer->tail->next = node;
@@ -308,7 +314,10 @@ void rel_read (rel_t *s)
 	memset(buf, 0, sizeof(char) * 500);
 	uint16_t length = 0;
 	while ((length = conn_input(s->c, (void *)buf, 500)) != 0) {
-		fprintf(stderr, "len:%d\n", length);
+		// fprintf(stderr, "len:%d\n", length);
+		if (length == -1) { /* end of file */
+			length = 0;
+		}
 		buffer_enque_c(s->server->buffer, buf, length); 
 		memset(buf, 0, sizeof(char) * 500);
 	}
@@ -322,7 +331,6 @@ void rel_output (rel_t *r)
 	while(!buffer_isEmpty(r->client->buffer)) {
 		if (conn_bufspace(r->c) >= r->client->buffer->head->next->len) {
 			tmp = buffer_deque(r->client->buffer);
-
 			conn_output(r->c, (void *)tmp->data, (size_t)tmp->len - 12);
 			free(tmp);
 			tmp = NULL;
