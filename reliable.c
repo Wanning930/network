@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <netinet/in.h>
+#include <stdint.h>
 
 #include "rlib.h"
 
@@ -84,6 +85,7 @@ struct reliable_state {
 rel_t *rel_list;
 
 void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
+	fprintf(stderr, "------------ enque len %u\n", (unsigned int)len);
 	assert(len <= 500);
 	pnode_t *node = malloc(sizeof(pnode_t));
 	memset(node, 0, sizeof(pnode_t));
@@ -261,7 +263,6 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 			}
 			r->client->window[(no - 1) % RWS] = pkt;
 			if (r->client->expect == no) {
-				fprintf(stderr, "expect %d last recv %d\n", r->client->expect, r->client->last_recv);
 				while (r->client->window[(r->client->expect - 1) % RWS] != NULL) {
 					buffer_enque_p(r->client->buffer, r->client->window[(r->client->expect - 1) % RWS]);
 					r->client->window[(r->client->expect - 1) % RWS] = NULL;
@@ -290,7 +291,6 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 
 void rel_send(rel_t *r) {
 	seqno_t SWS = r->server->SWS;
-	fprintf(stderr, "%d %d\n", r->server->last_sent- r->server->last_acked, !buffer_isEmpty(r->server->buffer));
 	while ((r->server->last_sent - r->server->last_acked < SWS) && (!buffer_isEmpty(r->server->buffer))) {
 		r->server->last_sent++;
 		r->server->packet_window[(r->server->last_sent - 1) % SWS] = buffer_deque(r->server->buffer);
@@ -312,13 +312,12 @@ void rel_read (rel_t *s)
 	/* need to transmit a packet for the first transmission */
 	char *buf = malloc(sizeof(char) * 500);
 	memset(buf, 0, sizeof(char) * 500);
-	uint16_t length = 0;
+	int length = 0;
 	while ((length = conn_input(s->c, (void *)buf, 500)) != 0) {
-		// fprintf(stderr, "len:%d\n", length);
 		if (length == -1) { /* end of file */
 			length = 0;
 		}
-		buffer_enque_c(s->server->buffer, buf, length); 
+		buffer_enque_c(s->server->buffer, buf, (uint16_t)length); 
 		memset(buf, 0, sizeof(char) * 500);
 	}
 	free(buf);
