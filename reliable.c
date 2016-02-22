@@ -85,7 +85,7 @@ rel_t *rel_list;
 
 void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
 	assert(len <= 500);
-	fprintf(stderr, "buffer enque char: %s\n", data);
+	// fprintf(stderr, "buffer enque char: %s\n", data);
 	pnode_t *node = malloc(sizeof(pnode_t));
 	node->content = malloc(sizeof(char) * len);
 	memcpy(node->content, data, sizeof(char) * len);
@@ -93,11 +93,11 @@ void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
 	node->next = NULL;
 	buffer->tail->next = node;
 	buffer->tail = buffer->tail->next;
-	fprintf(stderr, "char enque tail: %s\n", buffer->tail->content);
+	// fprintf(stderr, "char enque tail: %s\n", buffer->tail->content);
 }
 
 void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
-	fprintf(stderr, "buffer enque packet: %s\n", packet->data);
+	// fprintf(stderr, "buffer enque packet: %s\n", packet->data);
 	pnode_t *node = malloc(sizeof(pnode_t));
 	node->content = malloc(packet->len - 12);
 	memcpy(node->content, packet->data, packet->len - 12);
@@ -105,7 +105,7 @@ void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
 	node->next = NULL;
 	buffer->tail->next = node;
 	buffer->tail = buffer->tail->next;
-	fprintf(stderr, "packet enque tail: %s\n", buffer->tail->content);
+	// fprintf(stderr, "packet enque tail: %s\n", buffer->tail->content);
 
 }
 
@@ -115,7 +115,7 @@ packet_t *buffer_deque(buffer_t *buffer) {
 	buffer->head = buffer->head->next;
 	packet_t *newpt = malloc(pt->len + 12);
 	memset(newpt, 0, pt->len + 12);
-	fprintf(stderr, "buffer deque node: %s\n", pt->content);
+	// fprintf(stderr, "buffer deque node: %s\n", pt->content);
 	memcpy(newpt->data, pt->content, (size_t)(pt->len));
 	newpt->len = pt->len + 12; /* payload + 12 */
 	free(pt->content);
@@ -235,7 +235,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	seqno_t no = pkt->seqno;
 	pkt->len = ntohs(pkt->len);
 
-	fprintf(stderr, "recv packet is %s\n", pkt->data);
+	// fprintf(stderr, "recv packet is %s\n", pkt->data);
 
 	if (packet_isAck(n)) { /* server */
 		while (pkt->ackno - r->server->last_acked > 1) {
@@ -296,7 +296,7 @@ void rel_send(rel_t *r) {
 		tmp->seqno = htonl(r->server->last_sent);
 		tmp->len = htons(tmp->len);
 		tmp->cksum = cksum ((const void *)(tmp) + CKSUM_LEN, tmp->len - CKSUM_LEN);
-		fprintf(stderr, "send packet tmp: %s\n", tmp->data);
+		// fprintf(stderr, "send packet tmp: %s\n", tmp->data);
 		conn_sendpkt (r->c, tmp, ntohs(tmp->len));
 		timespec_t *ti = malloc(sizeof(timespec_t));
 		clock_gettime (CLOCK_REALTIME, ti);
@@ -312,7 +312,7 @@ void rel_read (rel_t *s)
 	memset(buf, 0, sizeof(char) * 500);
 	uint16_t length = 0;
 	while ((length = conn_input(s->c, (void *)buf, 500)) != 0) {
-		fprintf(stderr, "conn_input buf char[] %s\n", buf);
+		// fprintf(stderr, "conn_input buf char[] %s\n", buf);
 		buffer_enque_c(s->server->buffer, buf, length); 
 		memset(buf, 0, sizeof(char) * 500);
 	}
