@@ -293,7 +293,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 }
 
 void rel_send(rel_t *r) {
-		fprintf(stderr, "hello world!!!!!!!!!!!!!!!!!!!!!!!!! \n", r->server->last_sent);
+		fprintf(stderr, "hello world!!!!!!!!!!!!!!!!!!!!!!!!! \n");
 	seqno_t SWS = r->server->SWS;
 	while ((r->server->last_sent - r->server->last_acked < SWS) && (!buffer_isEmpty(r->server->buffer))) {
 		r->server->last_sent++;
