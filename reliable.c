@@ -314,7 +314,7 @@ void rel_send(rel_t *r) {
 		tmp->ackno = htonl(r->client->expect);
 		tmp->seqno = htonl(r->server->last_sent);
 		tmp->len = htons(tmp->len);
-		tmp->cksum = cksum ((const void *)(tmp) + CKSUM_LEN, tmp->len - CKSUM_LEN);
+		tmp->cksum = cksum ((const void *)(tmp) + CKSUM_LEN, ntohs(tmp->len) - CKSUM_LEN);
 		fprintf(stderr, "here send a packet! %d, len = %d\n", r->server->last_sent, ntohs(tmp->len));
 		conn_sendpkt (r->c, tmp, ntohs(tmp->len));
 		timespec_t *ti = malloc(sizeof(timespec_t));
