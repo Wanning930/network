@@ -102,6 +102,7 @@ void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
 	node->content = malloc(packet->len - 12);
 	memcpy(node->content, packet->data, packet->len - 12);
 	node->len = packet->len - 12; /* payload */
+	fprintf(stderr, "buffer enque len %d\n", node->len);
 	node->next = NULL;
 	buffer->tail->next = node;
 	buffer->tail = buffer->tail->next;
@@ -326,6 +327,7 @@ void rel_output (rel_t *r)
 	while(!buffer_isEmpty(r->client->buffer)) {
 		if (conn_bufspace(r->c) >= r->client->buffer->head->next->len) {
 			tmp = buffer_deque(r->client->buffer);
+			fprintf(stderr, "conn_output len %d\n", tmp->len);
 			conn_output(r->c, (void *)tmp->data, (size_t)tmp->len);
 			free(tmp);
 			tmp = NULL;
