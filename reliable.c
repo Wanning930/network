@@ -310,7 +310,7 @@ void rel_send(rel_t *r) {
 		if (tmp->seqno == 0x86) {
 		fprintf(stderr, "bug comes!!!!!!!!!!!!!!!!!!!!!!!!! %d\n", r->server->last_sent);
 		}
-		tmp->ackno = 0;
+		tmp->ackno = r->client->last_acked;
 		tmp->seqno = htonl(r->server->last_sent);
 		tmp->len = htons(tmp->len);
 		tmp->cksum = cksum ((const void *)(tmp) + CKSUM_LEN, tmp->len - CKSUM_LEN);
