@@ -336,7 +336,7 @@ void rel_read (rel_t *s)
 		if (length == -1) { /* end of file */
 			length = 0;
 			s->server->eof = true;
-			// buffer_enque_c(s->server->buffer, buf, 0); 
+			buffer_enque_c(s->server->buffer, buf, 0); 
 			break;
 		}
 		buffer_enque_c(s->server->buffer, buf, (uint16_t)length); 
