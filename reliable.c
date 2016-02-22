@@ -108,13 +108,13 @@ void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
 packet_t *buffer_deque(buffer_t *buffer) {
 	assert(!buffer_isEmpty(buffer));
 	pnode_t *pt = buffer->head->next;
-	buffer->head->next = buffer->head->next->next;
 	packet_t *newpt = malloc(pt->len + 12);
 	memset(newpt, 0, pt->len + 12);
 	memcpy(newpt->data, pt->content, (size_t)(pt->len));
 	newpt->len = pt->len + 12; /* payload + 12 */
-	free(pt->content);
-	free(pt);
+	free(buffer->head->content);
+	free(buffer->head);
+	buffer->head = pt;
 	return newpt;
 }
 
