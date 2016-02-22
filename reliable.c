@@ -347,6 +347,7 @@ void rel_output (rel_t *r)
 void rel_timer ()
 {
 	/* Retransmit any packets that need to be retransmitted */
+	fprintf(stderr, "rel_timer \n");
 	timespec_t now;
 	clock_gettime(CLOCK_REALTIME, &now);
 	seqno_t i = 0;
