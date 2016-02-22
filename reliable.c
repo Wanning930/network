@@ -95,6 +95,7 @@ void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
 }
 
 void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
+	fprintf(stderr, "buffer enque packet: %s\n", packet->data);
 	pnode_t *node = malloc(sizeof(pnode_t));
 	node->content = malloc(packet->len - 12);
 	memcpy(node->content, packet->data, packet->len - 12);
@@ -102,6 +103,8 @@ void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
 	node->next = NULL;
 	buffer->tail->next = node;
 	buffer->tail = buffer->tail->next;
+	fprintf(stderr, "buffer enque: %s\n", buffer->tail->content);
+
 }
 
 packet_t *buffer_deque(buffer_t *buffer) {
@@ -110,6 +113,7 @@ packet_t *buffer_deque(buffer_t *buffer) {
 	buffer->head = buffer->head->next;
 	packet_t *newpt = malloc(pt->len + 12);
 	memset(newpt, 0, pt->len + 12);
+	fprintf(stderr, "buffer deque node: %s\n", pt->content);
 	memcpy(newpt->data, pt->content, (size_t)(pt->len));
 	newpt->len = pt->len + 12; /* payload + 12 */
 	free(pt->content);
@@ -228,7 +232,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	pkt->ackno = ntohl(pkt->ackno);
 	seqno_t no = pkt->seqno;
 	pkt->len = ntohs(pkt->len);
-	
+
 	fprintf(stderr, "pkt data is %s\n", pkt->data);
 
 	if (packet_isAck(n)) { /* server */
