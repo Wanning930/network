@@ -228,6 +228,9 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	pkt->ackno = ntohl(pkt->ackno);
 	seqno_t no = pkt->seqno;
 	pkt->len = ntohs(pkt->len);
+	
+	fprintf(stderr, "pkt data is %s\n", pkt->data);
+
 	if (packet_isAck(n)) { /* server */
 		while (pkt->ackno - r->server->last_acked > 1) {
 			r->server->last_acked++;
