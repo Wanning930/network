@@ -232,6 +232,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	seqno_t RWS = r->client->RWS;
 	if (pkt->cksum != cksum((void *)pkt + CKSUM_LEN, n - CKSUM_LEN)) {
 		/* discard this packet */
+		fprintf(stderr, ".................. check sum wrong for seqno %d ........................\n", ntohl(pkt->seqno));
 		return;
 	}
 	pkt->seqno = ntohl(pkt->seqno);
