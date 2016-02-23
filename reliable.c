@@ -235,6 +235,11 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	seqno_t RWS = r->client->RWS;
 	if (pkt->cksum != cksum((void *)pkt + CKSUM_LEN, n - CKSUM_LEN)) {
 		/* discard this packet */
+		return;
+	}
+	if (pkt->len != n) {
+		/* discard this packet */
+		return;
 	}
 	pkt->seqno = ntohl(pkt->seqno);
 	pkt->ackno = ntohl(pkt->ackno);
@@ -261,7 +266,6 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		fprintf(stderr, "recv packet seqno %d\n", pkt->seqno);
 		if (packet_isEof(n)) {
 			r->client->eof = true;
-			// conn_output(r->c, (void *)pkt->data, 0);
 			fprintf(stderr, "client received an eof %d\n", pkt->seqno);
 			fprintf(stderr, "server flag %d, %d\n", r->server->eof, r->client->eof);
 		}
@@ -308,9 +312,6 @@ void rel_send(rel_t *r) {
 			r->server->eof = true;
 			fprintf(stderr, "send EOF %d\n", r->server->last_sent);
 			fprintf(stderr, "server flag %d, %d\n", r->server->eof, r->client->eof);
-		}
-		if (tmp->seqno == 0x86) {
-			fprintf(stderr, "bug comes!!!!!!!!!!!!!!!!!!!!!!!!! %d\n", r->server->last_sent);
 		}
 		tmp->ackno = htonl(r->client->expect);
 		tmp->seqno = htonl(r->server->last_sent);
