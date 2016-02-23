@@ -245,7 +245,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	// bool ack_flag = packet_isAck(n);
 
 	if (packet_isAck(n)) { /* server */
-		fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~ receive ack length = %d ~~~~~~~~~~~~~~~~~~~~~~~~~~~~", pkt->len);
+		fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~ receive ack length = %d ~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", pkt->len);g
 		fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~ receive ack ackno = %d, len = %zu ~~~~~~~~~~~~~~~~~~\n", pkt->ackno, n);
 		while (pkt->ackno - r->server->last_acked > 1) {
 			r->server->last_acked++;
