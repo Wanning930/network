@@ -245,6 +245,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	}
 
 	if (packet_isAck(n)) { /* server */
+		fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~~~~~~ receive ack ~~~~~~~~~~~~~~~~~~~~~~\n");
 		while (pkt->ackno - r->server->last_acked > 1) {
 			r->server->last_acked++;
 			if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
