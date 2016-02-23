@@ -238,8 +238,9 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	pkt->len = ntohs(pkt->len);
 	pkt->ackno = ntohl(pkt->ackno);
 	seqno_t no = ~0;
-	if (pkt->len != n) {
+	if ((size_t)pkt->len != n) {
 		/* discard this packet */
+		fprintf(stderr, ".................. check len wrong for seqno %d, pkt->len %zu, n %zu ........................\n", ntohl(pkt->seqno), (size_t)pkt->len, n);
 		return;
 	}
 	// bool ack_flag = packet_isAck(n);
