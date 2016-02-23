@@ -833,7 +833,7 @@ debug_recv (int s, packet_t *buf, size_t len, int flags,
     n = recvfrom (s, buf, len, flags, (struct sockaddr *) from, &socklen);
   else
     n = recv (s, buf, len, flags);
-  fprintf(stderr, "******************** test case output len %d ****************\n", buf->len);
+  fprintf(stderr, "******************** test case output len %d ****************\n", ntohs(buf->len));
   if (opt_debug)
     print_pkt (buf, "recv", n);
   return n;
