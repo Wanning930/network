@@ -260,6 +260,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		if (packet_isEof(n)) {
 			r->client->eof = true;
 		}
+		fprintf(stderr, "================================ recv %d, window (%d ~ %d] ======================================\n", no, r->client->last_recv, r->client->last_legal);
 		if ( (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
 			/* in the window */
 			if (r->client->window[(no - 1) % RWS] != NULL) {
