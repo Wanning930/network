@@ -240,9 +240,9 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	pkt->ackno = ntohl(pkt->ackno);
 	seqno_t no = pkt->seqno;
 	pkt->len = ntohs(pkt->len);
-	fprintf(stderr, "recv packet seqno %d\n", pkt->seqno);
 
 	if (packet_isAck(n)) { /* server */
+		fprintf(stderr, "recv packet ackno %d\n", pkt->ackno);
 		while (pkt->ackno - r->server->last_acked > 1) {
 			r->server->last_acked++;
 			if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
@@ -258,6 +258,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		rel_send(r);
 	}
 	else { /* client */
+		fprintf(stderr, "recv packet seqno %d\n", pkt->seqno);
 		if (packet_isEof(n)) {
 			r->client->eof = true;
 			conn_output(r->c, (void *)pkt->data, 0);
