@@ -119,9 +119,9 @@ packet_t *buffer_deque(buffer_t *buffer) {
 	memset(newpt, 0, pt->len + 12);
 	memcpy(newpt->data, pt->content, (size_t)(pt->len));
 	newpt->len = pt->len + 12; /* payload + 12 */
-	free(buffer->head->content);
-	free(buffer->head);
 	buffer->head->next = pt->next;
+	free(pt->content);
+	free(pt);
 	return newpt;
 }
 
