@@ -121,7 +121,7 @@ packet_t *buffer_deque(buffer_t *buffer) {
 	newpt->len = pt->len + 12; /* payload + 12 */
 	free(buffer->head->content);
 	free(buffer->head);
-	buffer->head = pt;
+	buffer->head->next = pt->next;
 	return newpt;
 }
 
@@ -226,8 +226,8 @@ void rel_demux (const struct config_common *cc,
 {
 }
 
-void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
-{
+void rel_recvpkt (rel_t *r, packet_t *pkt, size_t )
+{n
 	seqno_t SWS = r->server->SWS;
 	seqno_t RWS = r->client->RWS;
 	if (pkt->cksum != cksum((void *)pkt + CKSUM_LEN, n - CKSUM_LEN)) {
@@ -363,6 +363,10 @@ void rel_output (rel_t *r)
 		}
 	}
 }
+
+
+
+ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
 
 void rel_timer ()
 {
