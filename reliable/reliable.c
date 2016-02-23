@@ -235,17 +235,17 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		fprintf(stderr, ".................. check sum wrong for seqno %d ........................\n", ntohl(pkt->seqno));
 		return;
 	}
-	pkt->seqno = ntohl(pkt->seqno);
-	pkt->ackno = ntohl(pkt->ackno);
-	seqno_t no = pkt->seqno;
 	pkt->len = ntohs(pkt->len);
+	pkt->ackno = ntohl(pkt->ackno);
+	seqno_t no = ~0;
 	if (pkt->len != n) {
 		/* discard this packet */
 		return;
 	}
+	// bool ack_flag = packet_isAck(n);
 
 	if (packet_isAck(n)) { /* server */
-		fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~~~~~~ receive ack ~~~~~~~~~~~~~~~~~~~~~~\n");
+		fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~ receive ack ackno = %d, len = %zu ~~~~~~~~~~~~~~~~~~\n", pkt->ackno, n);
 		while (pkt->ackno - r->server->last_acked > 1) {
 			r->server->last_acked++;
 			if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
@@ -259,6 +259,8 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		rel_send(r);
 	}
 	else { /* client */
+		pkt->seqno = ntohl(pkt->seqno);
+		no = pkt->seqno;
 		if (packet_isEof(n)) {
 			fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~~~~~~ client read eof ~~~~~~~~~~~~~~~~~~~~~~\n");
 			r->client->eof = true;
