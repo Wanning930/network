@@ -237,14 +237,14 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		/* discard this packet */
 		return;
 	}
-	if (pkt->len != n) {
-		/* discard this packet */
-		return;
-	}
 	pkt->seqno = ntohl(pkt->seqno);
 	pkt->ackno = ntohl(pkt->ackno);
 	seqno_t no = pkt->seqno;
 	pkt->len = ntohs(pkt->len);
+	if (pkt->len != n) {
+		/* discard this packet */
+		return;
+	}
 
 	if (packet_isAck(n)) { /* server */
 		fprintf(stderr, "recv packet ackno %d\n", pkt->ackno);
