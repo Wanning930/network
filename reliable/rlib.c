@@ -834,7 +834,7 @@ debug_recv (int s, packet_t *buf, size_t len, int flags,
   else
     n = recv (s, buf, len, flags);
   fprintf(stderr, "************************* test case output len %d **********************\n", ntohs(buf->len));
-  fprintf(stderr, "************************* test case output seq %uz *********************\n", ntohs(buf->seqno));
+  fprintf(stderr, "************************* test case output seq %d *********************\n", ntohs(buf->seqno));
   if (opt_debug) {
     fprintf(stderr, "************************* nononono *************************************\n");
     print_pkt (buf, "recv", n);
