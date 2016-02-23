@@ -85,7 +85,6 @@ struct reliable_state {
 rel_t *rel_list;
 
 void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
-	// fprintf(stderr, "------------ enque len %u\n", (unsigned int)len);
 	assert(len <= 500);
 	pnode_t *node = malloc(sizeof(pnode_t));
 	memset(node, 0, sizeof(pnode_t));
@@ -136,7 +135,6 @@ bool packet_isAck(size_t n) {
 }
 
 bool packet_isEof(size_t n) {
-	// fprintf(stderr, "check ifffffffff EOF %zu\n", n);
 	return n == 12;
 }
 
@@ -203,7 +201,6 @@ rel_t * rel_create (conn_t *c, const struct sockaddr_storage *ss, const struct c
 
 void rel_destroy (rel_t *r)
 {
-	fprintf(stderr, "destroy \n");
 	if (r->next) {
 		r->next->prev = r->prev;
 	}
@@ -247,13 +244,10 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	}
 
 	if (packet_isAck(n)) { /* server */
-		fprintf(stderr, "recv packet ackno %d\n", pkt->ackno);
 		while (pkt->ackno - r->server->last_acked > 1) {
 			r->server->last_acked++;
 			if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
 				assert(r->server->eof == true);
-				fprintf(stderr, "server eof sent has been acked %d\n", r->server->last_acked);
-				fprintf(stderr, "server flag %d, %d\n", r->server->eof, r->client->eof);
 			}
 			free(r->server->time_window[(r->server->last_acked - 1) % SWS]);
 			r->server->time_window[(r->server->last_acked - 1) % SWS] = NULL;
@@ -263,11 +257,8 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		rel_send(r);
 	}
 	else { /* client */
-		fprintf(stderr, "recv packet seqno %d\n", pkt->seqno);
 		if (packet_isEof(n)) {
 			r->client->eof = true;
-			fprintf(stderr, "client received an eof %d\n", pkt->seqno);
-			fprintf(stderr, "server flag %d, %d\n", r->server->eof, r->client->eof);
 		}
 		if ( (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
 			/* in the window */
@@ -310,14 +301,11 @@ void rel_send(rel_t *r) {
 		packet_t *tmp = r->server->packet_window[(r->server->last_sent - 1) % SWS];
 		if (packet_isEof(tmp->len)) {
 			r->server->eof = true;
-			fprintf(stderr, "send EOF %d\n", r->server->last_sent);
-			fprintf(stderr, "server flag %d, %d\n", r->server->eof, r->client->eof);
 		}
 		tmp->ackno = htonl(r->client->expect);
 		tmp->seqno = htonl(r->server->last_sent);
 		tmp->len = htons(tmp->len);
 		tmp->cksum = cksum ((const void *)(tmp) + CKSUM_LEN, ntohs(tmp->len) - CKSUM_LEN);
-		fprintf(stderr, "here send a packet! %d, len = %d\n", r->server->last_sent, ntohs(tmp->len));
 		conn_sendpkt (r->c, tmp, ntohs(tmp->len));
 		timespec_t *ti = malloc(sizeof(timespec_t));
 		clock_gettime (CLOCK_REALTIME, ti);
@@ -379,9 +367,7 @@ void rel_timer ()
 			idx = (i - 1) % r->server->SWS;
 			interval = (now.tv_sec * 1000000 + now.tv_nsec);
 			interval -= r->server->time_window[idx]->tv_nsec * 1000000 + r->server->time_window[idx]->tv_nsec;
-			// fprintf(stderr, "rel_timer interval %li ns.\n", interval);
 			if (interval > (long)r->timeout * 1000000) {
-				// fprintf(stderr, "timeout seqno %d\n", i);
 				conn_sendpkt (r->c, r->server->packet_window[idx], ntohs(r->server->packet_window[idx]->len));
 				clock_gettime(CLOCK_REALTIME, r->server->time_window[idx]);
 			}
