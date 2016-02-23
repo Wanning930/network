@@ -261,7 +261,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		fprintf(stderr, "recv packet seqno %d\n", pkt->seqno);
 		if (packet_isEof(n)) {
 			r->client->eof = true;
-			conn_output(r->c, (void *)pkt->data, 0);
+			// conn_output(r->c, (void *)pkt->data, 0);
 			fprintf(stderr, "client received an eof %d\n", pkt->seqno);
 			fprintf(stderr, "server flag %d, %d\n", r->server->eof, r->client->eof);
 		}
