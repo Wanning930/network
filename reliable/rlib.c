@@ -927,7 +927,7 @@ main (int argc, char **argv)
   sigaction (SIGPIPE, &sa, NULL);
 
   memset (&c, 0, sizeof (c));
-  c.window = 1;
+  c.window = 2;
   c.timeout = 2000;
 
   progname = strrchr (argv[0], '/');
