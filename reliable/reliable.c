@@ -312,6 +312,7 @@ void rel_send(rel_t *r) {
 		tmp->seqno = htonl(r->server->last_sent);
 		tmp->len = htons(tmp->len);
 		tmp->cksum = cksum ((const void *)(tmp) + CKSUM_LEN, ntohs(tmp->len) - CKSUM_LEN);
+		fprintf(stderr, ".................. send seqno = %d len = %zu........................\n", ntohl(tmp->seqno), (size_t)ntohs(tmp->len));
 		conn_sendpkt (r->c, tmp, ntohs(tmp->len));
 		timespec_t *ti = malloc(sizeof(timespec_t));
 		clock_gettime (CLOCK_REALTIME, ti);
