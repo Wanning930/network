@@ -540,6 +540,7 @@ conn_poll (const struct config_common *cc)
 	      perror ("recv");
 	  }
 	  else {
+      fprintf(stderr, "******************** arg len of rel_recv %d ****************\n", len);
 	    rel_recvpkt (c->rel, &pkt, len);
 	    memset (&pkt, 0xc9, len); /* for debugging */
 	  }
@@ -828,8 +829,11 @@ debug_recv (int s, packet_t *buf, size_t len, int flags,
 {
   socklen_t socklen = sizeof (*from);
   int n;
-  if (from)
+  if (from) {
     n = recvfrom (s, buf, len, flags, (struct sockaddr *) from, &socklen);
+    // fprintf()
+    fprintf(stderr, "******************** test case output len %d ****************\n", buf->len);
+  }
   else
     n = recv (s, buf, len, flags);
   if (opt_debug)
