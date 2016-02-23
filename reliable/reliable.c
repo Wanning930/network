@@ -248,7 +248,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~ receive ack length = %d ~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", pkt->len);
 		fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~ receive ack ackno = %d, len = %zu ~~~~~~~~~~~~~~~~~~\n", pkt->ackno, n);
 		fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~ receive ack seqno = %d ~~~~~~~~~~~~~~~~~~\n", ntohl(pkt->seqno));
-		fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~ receive ack data = %s ~~~~~~~~~~~~~~~~~~\n", pkt->data);
+		fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~ rpkt->ackno %d, r->server->last_acked %d ~~~~~~~~~~~~~~~~~~\n", pkt->ackno, r->server->last_acked);
 		while (pkt->ackno - r->server->last_acked > 1) {
 			r->server->last_acked++;
 			if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
