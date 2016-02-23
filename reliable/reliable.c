@@ -258,6 +258,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	}
 	else { /* client */
 		if (packet_isEof(n)) {
+			fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~~~~~~ client read eof ~~~~~~~~~~~~~~~~~~~~~~\n");
 			r->client->eof = true;
 		}
 		fprintf(stderr, "================================ recv %x, window (%x ~ %x] ======================================\n", no, r->client->last_recv, r->client->last_legal);
@@ -328,6 +329,7 @@ void rel_read (rel_t *s)
 		if (length == -1) { /* end of file */
 			length = 0;
 			s->server->eof = true;
+			fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~~~~~~ server read eof ~~~~~~~~~~~~~~~~~~~~~~\n");
 			buffer_enque_c(s->server->buffer, buf, 0); 
 			break;
 		}
