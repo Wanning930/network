@@ -140,6 +140,8 @@ bool packet_isEof(size_t n) {
 
 
 
+
+
 /* Creates a new reliable protocol session, returns NULL on failure.
  * Exactly one of c and ss should be NULL.  (ss is NULL when called
  * from rlib.c, while c is NULL when this function is called from
@@ -381,6 +383,7 @@ void rel_timer ()
 			interval = (now.tv_sec * 1000000 + now.tv_nsec);
 			interval -= r->server->time_window[idx]->tv_nsec * 1000000 + r->server->time_window[idx]->tv_nsec;
 			if (interval > (long)r->timeout * 1000000) {
+				fprintf(stderr, ".................. retransmit send seqno = %d len = %zu........................\n", ntohl(r->server->packet_window[idx]->seqno), (size_t)ntohs(r->server->packet_window[idx]->len));
 				conn_sendpkt (r->c, r->server->packet_window[idx], ntohs(r->server->packet_window[idx]->len));
 				clock_gettime(CLOCK_REALTIME, r->server->time_window[idx]);
 			}
