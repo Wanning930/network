@@ -292,14 +292,14 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		fprintf(stderr, "================================ recv %x, window (%x ~ %x] ======================================\n", no, r->client->last_recv, r->client->last_legal);
 		if ( (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
 			/* in the window */
-			if (r->client->window[(no - 1) % RWS] != NULL) {
+			if (r->client->window[(no - 1) % RWS]->len != 0) {
 				assert(r->client->window[(no - 1) % RWS]->seqno == no);
 			}
-			r->client->window[(no - 1) % RWS] = pkt;
+			memcpy(r->client->window[(no - 1) % RWS], pkt, sizeof(pkt));
 			if (r->client->expect == no) {
-				while (r->client->window[(r->client->expect - 1) % RWS] != NULL) {
+				while (r->client->window[(r->client->expect - 1) % RWS]->len != 0) {
 					buffer_enque_p(r->client->buffer, r->client->window[(r->client->expect - 1) % RWS]);
-					r->client->window[(r->client->expect - 1) % RWS] = NULL;
+					memcpy(r->client->window[(r->client->expect - 1) % RWS], 0, sizeof(packet_t));
 					r->client->expect++;
 				}
 				r->client->last_recv = r->client->expect - 1;	
