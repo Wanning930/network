@@ -299,7 +299,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 			if (r->client->expect == no) {
 				while (r->client->window[(r->client->expect - 1) % RWS]->len != 0) {
 					buffer_enque_p(r->client->buffer, r->client->window[(r->client->expect - 1) % RWS]);
-					memcpy(r->client->window[(r->client->expect - 1) % RWS], 0, sizeof(packet_t));
+					memset(r->client->window[(r->client->expect - 1) % RWS], 0, sizeof(packet_t));
 					r->client->expect++;
 				}
 				r->client->last_recv = r->client->expect - 1;	
