@@ -276,6 +276,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 			r->client->eof = true;
 		}
 		fprintf(stderr, "================================ recv %x, window (%x ~ %x] ======================================\n", no, r->client->last_recv, r->client->last_legal);
+		fprintf(stderr, "================================ recv buffer size = %d ============================ \n", r->client->buffer->size);
 		if ( (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
 			/* in the window */
 			if (r->client->window[(no - 1) % RWS] != NULL) {
@@ -296,6 +297,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		else {
 			/* discard this packet */
 		}
+		fprintf(stderr, "================================ buffer size after output = %d ============================ \n", r->client->buffer->size);
 		/* send acknowledgment back to server */
 		ack_t ack;
 		ack.len = htons(ACK_LEN);
