@@ -38,6 +38,7 @@ bool packet_isAck(size_t n);
 void rel_send(rel_t *r);
 bool packet_isEof(size_t n);
 
+
 struct reliable_client { /* receive data packet and send ack */
 	seqno_t RWS;
 	seqno_t last_recv;
@@ -58,6 +59,7 @@ struct packet_node {
 struct reliable_buffer {
 	pnode_t *head; /* head is a dummy head */
 	pnode_t *tail;
+	int size;
 };
 
 struct reliable_server { /* send data packet and wait for ack */
@@ -99,6 +101,7 @@ void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
 	node->next = NULL;
 	buffer->tail->next = node;
 	buffer->tail = buffer->tail->next;
+	buffer->size++;
 }
 
 void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
@@ -109,7 +112,7 @@ void buffer_enque_p(buffer_t *buffer, packet_t *packet) {
 	node->next = NULL;
 	buffer->tail->next = node;
 	buffer->tail = buffer->tail->next;
-
+	buffer->size++;
 }
 
 packet_t *buffer_deque(buffer_t *buffer) {
@@ -122,6 +125,7 @@ packet_t *buffer_deque(buffer_t *buffer) {
 	free(buffer->head->content);
 	free(buffer->head);
 	buffer->head = pt;
+	buffer->size--;
 	return newpt;
 }
 
@@ -180,7 +184,9 @@ rel_t * rel_create (conn_t *c, const struct sockaddr_storage *ss, const struct c
 	r->client->buffer->head = malloc(sizeof(pnode_t));
 	memset(r->client->buffer->head, 0, sizeof(pnode_t));
 	r->client->buffer->tail = r->client->buffer->head;
+	r->client->buffer->size = 0;
 	r->client->eof = false;
+
 
 	/* Do server initialization */
 	r->timeout = cc->timeout;
@@ -197,6 +203,7 @@ rel_t * rel_create (conn_t *c, const struct sockaddr_storage *ss, const struct c
 	r->server->buffer->head = malloc(sizeof(pnode_t));
 	memset (r->server->buffer->head, 0, sizeof(pnode_t));
 	r->server->buffer->tail = r->server->buffer->head;
+	r->server->buffer->size = 0;
 	r->server->eof = false;
 	return r;
 }
