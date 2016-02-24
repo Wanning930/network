@@ -171,6 +171,7 @@ rel_t * rel_create (conn_t *c, const struct sockaddr_storage *ss, const struct c
 	}
 	rel_list = r;
 
+	int i = 0;
 	/* Do client initialization */
 	r->client = malloc(sizeof(client_t));
 	memset (r->client, 0, sizeof (client_t));
@@ -180,6 +181,9 @@ rel_t * rel_create (conn_t *c, const struct sockaddr_storage *ss, const struct c
 	r->client->expect = 1;
 	r->client->window = malloc((r->client->RWS) * sizeof(packet_t *));
 	memset (r->client->window, 0, (r->client->RWS) * sizeof(packet_t *));
+	for (i = 0; i < cc->window; i++) {
+		r->client->window[i] = malloc(sizeof(packet_t));
+	}
 	r->client->buffer = malloc(sizeof(buffer_t));
 	r->client->buffer->head = malloc(sizeof(pnode_t));
 	memset(r->client->buffer->head, 0, sizeof(pnode_t));
@@ -197,6 +201,9 @@ rel_t * rel_create (conn_t *c, const struct sockaddr_storage *ss, const struct c
 	r->server->last_sent = 0;
 	r->server->packet_window = malloc((r->server->SWS) * sizeof(packet_t *));
 	memset (r->server->packet_window, 0, (r->server->SWS) * sizeof(packet_t *));
+	for (i = 0; i < cc->window; i++) {
+		r->server->packet_window[i] = malloc(sizeof(packet_t));
+	}
 	r->server->time_window = malloc((r->server->SWS) * sizeof(timespec_t *));
 	memset (r->server->time_window, 0, (r->server->SWS) * sizeof(timespec_t *));
 	r->server->buffer = malloc(sizeof(buffer_t));
@@ -216,11 +223,18 @@ void rel_destroy (rel_t *r)
 	*r->prev = r->next;
 	conn_destroy (r->c);
 	/* Free any other allocated memory here */
+	int i = 0; 
+	for (i = 0; i < r->client->RWS; i++) {
+		free(r->client->window[i]);
+	}
 	free(r->client->window);
 	assert(buffer_isEmpty(r->client->buffer));
 	free(r->client->buffer->head);
 	free(r->client->buffer);
 	free(r->client);
+	for (i = 0; i < r->server->SWS; i++) {
+		free(r->server->packet_window[i]);
+	}
 	free(r->server->packet_window);
 	free(r->server->time_window);
 	assert(buffer_isEmpty(r->server->buffer));
