@@ -295,7 +295,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 			if (r->client->window[(no - 1) % RWS]->len != 0) {
 				assert(r->client->window[(no - 1) % RWS]->seqno == no);
 			}
-			memcpy(r->client->window[(no - 1) % RWS], pkt, sizeof(pkt));
+			memcpy(r->client->window[(no - 1) % RWS], pkt, sizeof(packet_t));
 			if (r->client->expect == no) {
 				while (r->client->window[(r->client->expect - 1) % RWS]->len != 0) {
 					buffer_enque_p(r->client->buffer, r->client->window[(r->client->expect - 1) % RWS]);
