@@ -64,49 +64,38 @@ int createConn(Node *node) {
 	Iface *itf = node->iface;
 	while (itf) {
 		// client
-		itf->clientFD = socket(AF_INET, SOCK_STREAM, 0);
-		if (itf->clientFD < 0) {
+		itf->cfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		if (itf->cfd < 0) {
 			return 1;
 		}
 
-		struct sockaddr_in serAddr;
-		memset((char *)&serAddr, 0, sizeof(struct sockaddr_in));
-		serAddr.sin_addr.s_addr = inet_addr(LOCAL_HOST);
-		serAddr.sin_family = AF_INET;
-		serAddr.sin_port = htons(itf->port);
-
-		if (connect(itf->clientFD, (struct sockaddr*)&serAddr, sizeof(struct sockaddr)) < 0) {
-			return 2;
-		}
-
-		// server
-		int sock = socket(AF_INET, SOCK_STREAM, 0);
-		if (sock < 0) {
-			return 3;
-		}
-
-		struct sockaddr_in cliAddr;
-		memset((char *)&cliAddr, 0, sizeof(struct sockaddr_in));
-		cliAddr.sin_addr.s_addr = INADDR_ANY;
-		cliAddr.sin_family = AF_INET;
-		cliAddr.sin_port = htons(node->port);
-
-		if (bind(sock, (struct sockaddr *)&cliAddr, sizeof(struct sockaddr)) < 0) {
-			return 4;
-		}
-
-		listen(sock, MAX_BACK_LOG);
-		socklen_t sin_size = sizeof(struct sockaddr_in);
-		itf->serverFD = accept(sock, (struct sockaddr *)&cliAddr, &sin_size);
-		if (itf->serverFD < 0) {
-	        printf ("Error no is : %d\n", errno);
-	        printf("Error description : %s\n",strerror(errno));
-			return 5;
-		}
+		itf->saddr = (Sockaddr_in *)malloc(sizeof(Sockaddr_in));
+		memset((char *)itf->saddr, 0, sizeof(Sockaddr_in));
+		itf->saddr->sin_addr.s_addr = inet_addr(LOCAL_HOST);
+		itf->saddr->sin_family = AF_INET;
+		itf->saddr->sin_port = htons(itf->port);
 
 		cout<<"connect "<<node->port<<" "<<itf->port<<endl;
 
 		itf = itf->next;
+	}
+
+
+	// server
+	node->sfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (node->sfd < 0) {
+		return 3;
+	}
+
+	node->saddr = (Sockaddr_in *)malloc(sizeof(Sockaddr_in));
+
+	memset((char *)node->saddr, 0, sizeof(Sockaddr_in));
+	node->saddr->sin_addr.s_addr = INADDR_ANY;
+	node->saddr->sin_family = AF_INET;
+	node->saddr->sin_port = htons(node->port);
+
+	if (bind(node->sfd, (Sockaddr *)node->saddr, sizeof(Sockaddr)) < 0) {
+		return 4;
 	}
 	return 0;
 }
@@ -120,10 +109,6 @@ int main(int argc, char *argv[]) {
 		perror("client create socket error");
 		delete(node);
 		return 0;
-	case 2:
-		perror("client connect error");
-		delete(node);
-		return 0;
 	case 3:	
 		perror("server create socket error");
 		delete(node);
@@ -132,22 +117,20 @@ int main(int argc, char *argv[]) {
 		perror("server bind error");
 		delete(node);
 		return 0;
-	case 5:
-		perror("accept error");
-		delete(node);
-		return 0;
 	default:
 		break;
 	}
 	
 
+	cout<<"enter jwn"<<endl;
 	string jwn;
 	cin>>jwn;
 	Iface *itf = node->iface;
 	while(itf) {
-		close(itf->clientFD);
-		close(itf->serverFD);
+		close(itf->cfd);
+		itf = itf->next;
 	}
+	close(node->sfd);
 
 
 	delete(node);
