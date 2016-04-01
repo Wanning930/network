@@ -5,6 +5,11 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "node.h"
 using namespace std;
 
@@ -14,40 +19,42 @@ using namespace std;
 typedef struct sockaddr_in Sockaddr_in;
 typedef struct sockaddr Sockaddr;
 
-class Iface {
-public:
-	int port;
-	string localAddr;
-	string remoteAddr;
-	Iface *next;
-	int no;
+struct Nface {
+	// string localIP;
+	// string remoteIP;
 	int cfd;
+	in_port_t port;
+	bool status;
 	Sockaddr_in *saddr;
-	Iface(int p = 0, string la = "", string ra = "", int n = 0):
-		port(p), localAddr(la), remoteAddr(ra), no(n){}
+	Nface(in_port_t p = 0):port(p){}
 };
 
 class Node {
 public:
-	int port;
-	Iface *iface;
-	int numIface;
+	int numFace;
+	in_port_t port;
+	vector<Nface *> it;
+
+	Node(unsigned p): port(p) {recving = false;};
+	~Node(); 
+	bool startLink();
+	void sendp(int id, string msg);
+	void register(void (*f)(int));
+	void recvp(char buffer[]);
+
+private:
 	int sfd;
 	Sockaddr_in *saddr;
-	Node(int p): port(p) {}
-	~Node() {
-		free(saddr);
-		clearIface();
-	}
-	void clearIface() {
-		Iface *tmp = iface;
-		while (iface) {
-			iface = iface->next;
-			free(tmp->saddr);
-			delete tmp;
-			tmp = iface;
-		}
-	}
+	pthread_t tidRecv;
+	bool recving;
+	void (*handler)(void *arg);
+
+	int createConn();
+	bool isGoodConn(int status);
+	void delFace();
+	bool startRecv();
+	void killRecv();
+
 };
 
 #endif
