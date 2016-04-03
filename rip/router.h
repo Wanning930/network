@@ -32,7 +32,11 @@ public:
 
 	Router(in_port_t p);
 	~Router();
+	bool send(in_addr_t dest, string longMsg);
 	bool send(string dest, string msg);
+	bool wrapSend(int id, in_addr_t dest, const char *msg, bool flag);
+	bool isDest(in_addr_t dest);
+	int findIt(in_addr_t dest);
 	void setActive(int id, bool flag);
 
 private:

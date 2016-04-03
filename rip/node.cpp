@@ -2,7 +2,6 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <queue>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +10,6 @@
 #include <errno.h>
 #include "node.h"
 #include "router.h"
-#include "protocal.h"
 using namespace std;
 
 
@@ -108,60 +106,13 @@ bool Node::isGoodConn(int result) {
 	return true;
 }
 
-bool Node::sendp(int id, char msg[], bool flag, in_addr_t destIP) {
-	// wrap the msg < MAX_MSG_LEN to a packet
-	// flag == true: message
-	// flag == false: rip
+bool Node::sendp(int id, char *pkt, size_t len) {
 	Nface *nf = it[id];
-	socklen_t addrlen = ADDR_LEN;
-	ssize_t len, result;
-	len = sizeof(ip_t) + strlen(msg);
-	char *packet = (char *)malloc(len);
-	memcpy((void *)packet + sizeof(ip_t), (void *)msg, strlen(msg));
-	ip_t *ip = (ip_t *)packet;
-	ip->hl = sizeof(ip_t);
-	ip->version = 4;
-	ip->tos = 0;
-	ip->length = htons(sizeof(ip_t) + strlen(msg));
-	ip->iden = htons(0);
-	ip->offset = htons(0);
-	ip->ttl = 255;
-	ip->protocal = (flag)? 0:200;
-	ip->sum = 0;
-	ip->src = htonl(nf->localIP);
-	ip->dest = htonl(destIP);
-	ip->sum = ip_sum(packet, len);
-
-	result = sendto(nf->cfd, packet, len, 0, (Sockaddr *)nf->saddr, addrlen);
-	if (result == -1) {
-		perror("socket send error");
+	ssize_t result = 0;
+	size_t addrlen = sizeof(Sockaddr_in);
+	result = sendto(nf->cfd, pkt, len, 0, (Sockaddr *)nf->saddr, addrlen);
+	if (result < len) {
 		return false;
-	}
-	assert(result == len);
-	return true;
-}
-
-bool Node::sendp(int id, string longMsg, bool flag, in_addr_t destIP) {
-	// works when message length > MAX_MSG_LEN
-	queue<string> que;
-	string msg;
-	if (longMsg.size() > MAX_MSG_LEN) {
-		do {
-			msg = longMsg.substr(0, MAX_MSG_LEN);
-			que.push(msg);
-			longMsg = longMsg.substr(MAX_MSG_LEN);
-		} while (longMsg.size() > MAX_MSG_LEN);
-	}
-	else {
-		que.push(longMsg);
-	}
-
-	while (!que.empty()) {
-		msg = que.front();
-		que.pop();
-		if (!sendp(id, msg.c_str(), bool flag, in_addr_t destIP)) {
-			return false;
-		}
 	}
 	return true;
 }
@@ -177,38 +128,13 @@ bool Node::recvp(char buffer[]) {
 		return false;
 	}
 
-	ip_t *ip = (ip_t *)buffer;
-	in_addr_t destIP = ip->dest;
-	Nface *nf = NULL;
-	int i = 0;
-	for (; i < it.size(); i++) {
-		if (it[i]->localIP == destIP) {
-			nf = it[i];
-			break;
-		}
-	}
+	pthread_t tid = 0;
+	char *arg = (char *)malloc(sizeof(char *) + MAX_IP_LEN);
+	memcpy(arg, &router, sizeof(void *));
+	memcpy(arg + sizeof(void *), buffer, MAX_IP_LEN);
+	
+	pthread_create(&tid, NULL, handler, (void *)arg);
 
-	if (nf == NULL) {
-		ip->ttl -= 1;
-		if (ip->ttl == 0) {
-			printf("ttl = 0, discard packet\n");
-		}
-		else {
-			void *arg = malloc(3 * sizeof(void *));
-			*arg = &router;
-			*(arg + 1) = &destIP;
-			*(arg + 2) = &(buffer + sizeof(ip_t));
-
-		}
-	}
-	else {
-		if (ip->protocal == 200) {
-
-		}
-		else if (ip->protocal == 0) {
-			printf("receive message: %s\n", buffer + sizeof(ip_t));
-		}
-	}
 	return true;
 }
 
@@ -228,14 +154,13 @@ void Node::killRecv() {
 		pthread_join(tidRecv, NULL);
 		recving = false;
 	}
+	else {
+		printf("false kill receive\n");
+	}
 }
 
-void Node::setRipHandler(bool (*func)(void *arg)) {
-	ripHandler = func;
-}
-
-void Node::setMsgHandler(bool (*func)(void *arg)) {
-	msgHandler = func;
+void Node::setHandler(void * (*func)(void *arg)) {
+	handler = func;
 }
 
 

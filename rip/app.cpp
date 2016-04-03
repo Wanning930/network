@@ -57,7 +57,7 @@ bool init(char argv[], Router *&router) {
 			return false;
 		}
 		input>>ip1>>ip2;
-		nf = new Nface(port, ip1);
+		nf = new Nface(port);
 		rf = new Rface(ip1, ip2);
 		router->node->it.push_back(nf);
 		router->it.push_back(rf);
