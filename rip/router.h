@@ -1,15 +1,11 @@
+#ifndef ROUTER_H
+#define ROUTER_H
+
 /* router.h */
 #include <map>
 #include <list>
 #include "node.h"
-
-
-struct Rface {
-	in_addr_t localIP;
-	in_addr_t nextIP;
-	Rface(in_addr_t a, in_addr_t b): localIP(a), nextIP(b) {};
-	Rface(string a, string b): localIP(inet_addr(a.c_str())), nextIP(inet_addr(b.c_str())) {};
-};
+using namespace std;
 
 struct Entry {
 	in_addr_t destIP;
@@ -17,6 +13,14 @@ struct Entry {
 	in_addr_t nextIP;
 	Entry(string a, int b, string c): destIP(inet_addr(a.c_str())), cost(b), nextIP(inet_addr(c.c_str())) {};
 	Entry(in_addr_t a, int b, in_addr_t c): destIP(a), cost(b), nextIP(c) {};
+};
+
+struct Rface {
+	in_addr_t localIP;
+	in_addr_t nextIP;
+	bool active;
+	Rface(in_addr_t a, in_addr_t b): localIP(a), nextIP(b), active(true) {};
+	Rface(string a, string b): localIP(inet_addr(a.c_str())), nextIP(inet_addr(b.c_str())), active(true) {};
 };
 
 class Router {
@@ -28,9 +32,12 @@ public:
 
 	Router(in_port_t p);
 	~Router();
-
-	void delRt();
-	void delIt();
+	bool send(string dest, string msg);
+	void setActive(int id, bool flag);
 
 private:
+	void delRt();
+	void delIt();
 };
+
+#endif

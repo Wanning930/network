@@ -2,23 +2,27 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <queue>
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include "node.h"
+#include "router.h"
+#include "protocal.h"
 using namespace std;
 
-#define ADDR_LEN (sizeof(struct sockaddr_in))
-#define MAX_MSG_LEN (1400)
 
 void *recvRoutine(void *nn) {
 	Node *node = (Node *)nn;
-	char buffer[MAX_MSG_LEN];
+	char buffer[MAX_IP_LEN];
 	while (1) {
 		pthread_testcancel();
-		node->recvp(buffer);
+		if (!node->recvp(buffer)) {
+			break;
+		}
 	}
 	return NULL;
 }
@@ -104,17 +108,108 @@ bool Node::isGoodConn(int result) {
 	return true;
 }
 
-void Node::sendp(int id, string msg) {
+bool Node::sendp(int id, char msg[], bool flag, in_addr_t destIP) {
+	// wrap the msg < MAX_MSG_LEN to a packet
+	// flag == true: message
+	// flag == false: rip
 	Nface *nf = it[id];
 	socklen_t addrlen = ADDR_LEN;
-	sendto(nf->cfd, msg.c_str(), msg.size(), 0, (Sockaddr *)nf->saddr, addrlen);
+	ssize_t len, result;
+	len = sizeof(ip_t) + strlen(msg);
+	char *packet = (char *)malloc(len);
+	memcpy((void *)packet + sizeof(ip_t), (void *)msg, strlen(msg));
+	ip_t *ip = (ip_t *)packet;
+	ip->hl = sizeof(ip_t);
+	ip->version = 4;
+	ip->tos = 0;
+	ip->length = htons(sizeof(ip_t) + strlen(msg));
+	ip->iden = htons(0);
+	ip->offset = htons(0);
+	ip->ttl = 255;
+	ip->protocal = (flag)? 0:200;
+	ip->sum = 0;
+	ip->src = htonl(nf->localIP);
+	ip->dest = htonl(destIP);
+	ip->sum = ip_sum(packet, len);
+
+	result = sendto(nf->cfd, packet, len, 0, (Sockaddr *)nf->saddr, addrlen);
+	if (result == -1) {
+		perror("socket send error");
+		return false;
+	}
+	assert(result == len);
+	return true;
 }
 
-void Node::recvp(char buffer[]) {
+bool Node::sendp(int id, string longMsg, bool flag, in_addr_t destIP) {
+	// works when message length > MAX_MSG_LEN
+	queue<string> que;
+	string msg;
+	if (longMsg.size() > MAX_MSG_LEN) {
+		do {
+			msg = longMsg.substr(0, MAX_MSG_LEN);
+			que.push(msg);
+			longMsg = longMsg.substr(MAX_MSG_LEN);
+		} while (longMsg.size() > MAX_MSG_LEN);
+	}
+	else {
+		que.push(longMsg);
+	}
+
+	while (!que.empty()) {
+		msg = que.front();
+		que.pop();
+		if (!sendp(id, msg.c_str(), bool flag, in_addr_t destIP)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool Node::recvp(char buffer[]) {
 	socklen_t addrlen = 0;
 	Sockaddr_in sin;	
-	memset((void *)buffer, 0, MAX_MSG_LEN);
-	recvfrom(sfd, buffer, MAX_MSG_LEN, 0, (Sockaddr *)&sin, &addrlen);
+	memset((void *)buffer, 0, MAX_IP_LEN);
+	ssize_t len = 0;
+	len = recvfrom(sfd, buffer, MAX_IP_LEN, 0, (Sockaddr *)&sin, &addrlen);
+	if (len == -1) {
+		perror("socket receive error");
+		return false;
+	}
+
+	ip_t *ip = (ip_t *)buffer;
+	in_addr_t destIP = ip->dest;
+	Nface *nf = NULL;
+	int i = 0;
+	for (; i < it.size(); i++) {
+		if (it[i]->localIP == destIP) {
+			nf = it[i];
+			break;
+		}
+	}
+
+	if (nf == NULL) {
+		ip->ttl -= 1;
+		if (ip->ttl == 0) {
+			printf("ttl = 0, discard packet\n");
+		}
+		else {
+			void *arg = malloc(3 * sizeof(void *));
+			*arg = &router;
+			*(arg + 1) = &destIP;
+			*(arg + 2) = &(buffer + sizeof(ip_t));
+
+		}
+	}
+	else {
+		if (ip->protocal == 200) {
+
+		}
+		else if (ip->protocal == 0) {
+			printf("receive message: %s\n", buffer + sizeof(ip_t));
+		}
+	}
+	return true;
 }
 
 bool Node::startRecv() {
@@ -135,10 +230,13 @@ void Node::killRecv() {
 	}
 }
 
-void Node::register(void (*func)(int)) {
-	handler = func;
+void Node::setRipHandler(bool (*func)(void *arg)) {
+	ripHandler = func;
 }
 
+void Node::setMsgHandler(bool (*func)(void *arg)) {
+	msgHandler = func;
+}
 
 
 

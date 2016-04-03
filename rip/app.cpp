@@ -8,6 +8,12 @@
 #include "router.h"
 using namespace std;
 
+#define IFCONFIG 	(0)
+#define ROUTE 		(1)
+#define UP 			(2)
+#define DOWN 		(3)
+#define SEND 		(4)
+
 bool isBadHost(string host) {
 	bool r = (host != "localhost");
 	if (r) {
@@ -24,7 +30,7 @@ bool isBadPort(int port) {
 	return r;
 }
 
-bool init(char argv[], Router *router) {
+bool init(char argv[], Router *&router) {
 	ifstream input;
 	input.open(argv);
 	string line;
@@ -42,6 +48,7 @@ bool init(char argv[], Router *router) {
 	string ip1, ip2;
 	Nface *nf = NULL;
 	Rface *rf = NULL;
+	Entry *ripEntry = NULL;
 	int num = 0;
 	while(input>>line) {
 		if (isBadHost(host = line.substr(0, 9)) || 
@@ -50,10 +57,12 @@ bool init(char argv[], Router *router) {
 			return false;
 		}
 		input>>ip1>>ip2;
-		nf = new Nface(port);
+		nf = new Nface(port, ip1);
 		rf = new Rface(ip1, ip2);
 		router->node->it.push_back(nf);
 		router->it.push_back(rf);
+		ripEntry = new Entry(ip2, 1, ip2);
+		router->rt.push_back(ripEntry);
 		num++;
 	}
 	router->node->numFace = num;
@@ -65,6 +74,25 @@ bool init(char argv[], Router *router) {
 	return true;
 }
 
+int parseCmd(string cmd) {
+	if (cmd == "ifconfig") {
+		return IFCONFIG;
+	}
+	else if (cmd == "route") {
+		return ROUTE;
+	}
+	else if (cmd == "up") {
+		return UP;
+	}
+	else if (cmd == "down") {
+		return DOWN;
+	}
+	else if (cmd == "send") {
+		return SEND;
+	}
+	return -1;
+}
+
 int main(int argc, char *argv[]) {
 	
 	// create network topology
@@ -73,14 +101,38 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 
+
 	// listen to command line
 	string cmd;
+	bool result = true;
 	while (cin>>cmd) {
 		if (cmd == "exit") {
 			break;
 		}
 		else {
-			cout<<"cmd: "<<cmd<<endl;
+			switch(parseCmd(cmd)) {
+				case IFCONFIG:
+					break;
+				case ROUTE:
+					break;
+				case UP:
+					break;
+				case DOWN:
+					break;
+				case SEND: {
+					string dest, msg;
+					cin>>dest;
+					cin>>msg;
+					result = router->send(dest, msg);
+					break;
+				}
+				default:
+					cout<<"illegal command"<<endl;
+					break;
+			}			
+		}
+		if (!result) {
+			break;
 		}
 	}
 
