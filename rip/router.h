@@ -11,8 +11,9 @@ struct Entry {
 	in_addr_t destIP;
 	int cost;
 	in_addr_t nextIP;
-	Entry(string a, int b, string c): destIP(inet_addr(a.c_str())), cost(b), nextIP(inet_addr(c.c_str())) {};
-	Entry(in_addr_t a, int b, in_addr_t c): destIP(a), cost(b), nextIP(c) {};
+	int timeStamp;
+	Entry(string a, int b, string c): destIP(inet_addr(a.c_str())), cost(b), nextIP(inet_addr(c.c_str())), timeStamp(0) {};
+	Entry(in_addr_t a, int b, in_addr_t c): destIP(a), cost(b), nextIP(c), timeStamp(0) {};
 };
 
 struct Rface {
@@ -34,14 +35,17 @@ public:
 	~Router();
 	bool send(in_addr_t dest, string longMsg);
 	bool send(string dest, string msg);
-	bool wrapSend(int id, in_addr_t dest, const char *msg, bool flag);
 	bool isDest(in_addr_t dest);
 	int findIt(in_addr_t dest);
+	bool recvRip(char *buf);
 	void setActive(int id, bool flag);
 
 private:
 	void delRt();
 	void delIt();
+	bool wrapSend(in_addr_t dest, const char *msg, bool flag);
+	bool rtUpdate(in_addr_t dest, in_addr_t src, int cost);
+	bool sendRip();
 };
 
 #endif

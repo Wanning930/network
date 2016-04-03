@@ -129,10 +129,11 @@ bool Node::recvp(char buffer[]) {
 	}
 
 	pthread_t tid = 0;
-	char *arg = (char *)malloc(sizeof(char *) + MAX_IP_LEN);
+	char *arg = (char *)malloc(sizeof(void *) + addrlen + MAX_IP_LEN);
 	memcpy(arg, &router, sizeof(void *));
-	memcpy(arg + sizeof(void *), buffer, MAX_IP_LEN);
-	
+	memcpy(arg + sizeof(void *), &sin, addrlen);
+	memcpy(arg + sizeof(void *) + addrlen, buffer, MAX_IP_LEN);
+
 	pthread_create(&tid, NULL, handler, (void *)arg);
 
 	return true;

@@ -24,13 +24,26 @@ struct ip_t {
 };
 
 struct rip_t {
-	uint16_t command;
+	uint16_t cmd;
 	uint16_t num;
 };
 
 struct rip_entry_t {
 	uint32_t cost;
-	uint32_t address;
+	uint32_t addr;
 };
 
 #endif
+
+	/*ip->hl = sizeof(ip_t);
+	ip->version = 4;
+	ip->tos = 0;
+	ip->length = htons(sizeof(ip_t) + strlen(msg));
+	ip->iden = htons(0);
+	ip->offset = htons(0);
+	ip->ttl = 255;
+	ip->protocal = (flag)? 0:200;
+	ip->sum = 0;
+	ip->src = htonl(nf->localIP);
+	ip->dest = htonl(destIP);
+	ip->sum = ip_sum(packet, len);*/

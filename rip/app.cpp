@@ -62,7 +62,11 @@ bool init(char argv[], Router *&router) {
 		router->node->it.push_back(nf);
 		router->it.push_back(rf);
 		ripEntry = new Entry(ip2, 1, ip2);
+
+		pthread_mutex_lock(&(router->rtlock));
 		router->rt.push_back(ripEntry);
+		pthread_mutex_unlock(&(router->rtlock));
+		
 		num++;
 	}
 	router->node->numFace = num;
@@ -122,7 +126,7 @@ int main(int argc, char *argv[]) {
 				case SEND: {
 					string dest, msg;
 					cin>>dest;
-					cin>>msg;
+					getline(cin,msg); 
 					result = router->send(dest, msg);
 					break;
 				}
