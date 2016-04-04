@@ -148,13 +148,13 @@ bool Router::rtUpdate(const in_addr_t dest, const in_addr_t src, int cost) {
 			printf("break 1\n");
 			break; // destination is unique
 		}
-		else if ((*pt)->destIP == src && (*pt)->nextIP == src) {
-		printf("pt->dest %s, src %s\n", ntoa({(*pt)->destIP}).c_str(), ntoa({src}).c_str());
-			(*pt)->timeStamp = 0;
-			// no need to change result
-			printf("break 2\n");
-			break;
-		}
+		// else if ((*pt)->destIP == src && (*pt)->nextIP == src) {
+		// printf("pt->dest %s, src %s\n", ntoa({(*pt)->destIP}).c_str(), ntoa({src}).c_str());
+		// 	(*pt)->timeStamp = 0;
+		// 	// no need to change result
+		// 	printf("break 2\n");
+		// 	break;
+		// }
 	}
 	printf("if (pt == rt.end())\n");
 
