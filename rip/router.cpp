@@ -1,6 +1,8 @@
 /* router.cpp */
 #include <queue>
 #include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "router.h"
 using namespace std;
 
