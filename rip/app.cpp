@@ -3,6 +3,7 @@
 #include <fstream>
 #include <string>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include "node.h"
 #include "router.h"
@@ -39,7 +40,7 @@ bool init(char argv[], Router *&router) {
 	
 	input>>line;
 	if (isBadHost(host = line.substr(0, 9)) || 
-		isBadPort(port = stoi(line.substr(10)))) {
+		isBadPort(port = atoi(line.substr(10).c_str()))) {
 		return false;
 	}
 
@@ -52,7 +53,7 @@ bool init(char argv[], Router *&router) {
 	int num = 0;
 	while(input>>line) {
 		if (isBadHost(host = line.substr(0, 9)) || 
-			isBadPort(port = stoi(line.substr(10)))) {
+			isBadPort(port = atoi(line.substr(10).c_str()))) {
 			delete router;
 			return false;
 		}

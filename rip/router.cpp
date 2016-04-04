@@ -13,7 +13,7 @@ void *routerRecv(void *arg);
 
 void timer_thread(union sigval v) {  
 	Router *router = (Router *)v.sival_ptr;
-    printf("jwn timer! %d\n", router->it.size());  
+    printf("jwn timer! %lu\n", router->it.size());  
 }
 
 Router::Router(unsigned short p) {
