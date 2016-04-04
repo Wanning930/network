@@ -43,9 +43,12 @@ public:
 	int findIt(in_addr_t dest);
 	bool recvRip(char *buf);
 	bool startTimer();
+	bool checkTimer();
 	void setActive(int id, bool flag);
 
 private:
+	int timeStamp;
+
 	void delRt();
 	void delIt();
 	bool wrapSend(in_addr_t dest, const char *msg, bool flag);
