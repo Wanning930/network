@@ -59,6 +59,7 @@ private:
 	void delFace();
 	bool startRecv();
 	void killRecv();
+	bool startTimer();
 
 };
 

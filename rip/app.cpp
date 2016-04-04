@@ -75,6 +75,11 @@ bool init(char argv[], Router *&router) {
 		delete router;
 		return false;
 	}
+
+	if (!router->startTimer()) {
+		delete router;
+		return false;
+	}
 	return true;
 }
 

@@ -1,12 +1,17 @@
 /* router.cpp */
-#include <signal.h>
-#include <time.h>
 #include <queue>
 #include <assert.h>
 #include "router.h"
 using namespace std;
 
+#define CLOCKID CLOCK_REALTIME  
+
 void *routerRecv(void *arg);
+
+void timer_thread(union sigval v) {  
+	Router *router = (Router *)v.sival_ptr;
+    printf("jwn timer! %d\n", router->port);  
+}
 
 Router::Router(unsigned short p) {
 	node = new Node(p);
@@ -19,6 +24,32 @@ Router::~Router() {
 	delete node;
 	delRt();
 	delIt();
+	timer_delete(timerid);
+}
+
+bool Router::startTimer() {
+	
+	struct sigevent evp;
+	memset(&evp, 0, sizeof(struct sigevent));
+
+	evp.sigev_notify = SIGEV_THREAD;
+	evp.sigev_notify_function = timer_thread; 
+	evp.sigev_value.sival_ptr = this;
+    if (timer_create(CLOCKID, &evp, &timerid) == -1) {  
+        perror("fail to timer_create");  
+        return false;  
+    }  
+
+	struct itimerspec it;  
+    it.it_interval.tv_sec = 2;  
+    it.it_interval.tv_nsec = 0;  
+    it.it_value.tv_sec = 1;  
+    it.it_value.tv_nsec = 0;  
+	if (timer_settime(timerid, 0, &it, NULL) == -1) {
+		perror("fail to timer_settime"); 
+		return false;
+	}
+	return true;
 }
 
 void Router::delRt() {

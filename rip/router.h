@@ -4,6 +4,9 @@
 /* router.h */
 #include <map>
 #include <list>
+#include <signal.h>
+#include <time.h>
+#include <sys/types.h>
 #include "node.h"
 using namespace std;
 
@@ -30,6 +33,7 @@ public:
 	pthread_mutex_t rtlock;
 	vector<Rface *> it; // [(local ip, next hop ip)]
 	Node *node;
+	timer_t timerid;
 
 	Router(in_port_t p);
 	~Router();
