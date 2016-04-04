@@ -62,7 +62,8 @@ bool init(char argv[], Router *&router) {
 		rf = new Rface(ip1, ip2);
 		router->node->it.push_back(nf);
 		router->it.push_back(rf);
-		ripEntry = new Entry(ip2, 1, ip2);
+		// ripEntry = new Entry(ip2, 1, ip2);
+		ripEntry = new Entry(ip1, 0, ip1);
 
 		pthread_mutex_lock(&(router->rtlock));
 		router->rt.push_back(ripEntry);
@@ -71,6 +72,8 @@ bool init(char argv[], Router *&router) {
 		num++;
 	}
 	router->node->numFace = num;
+
+
 
 	if (!router->node->startLink()) {
 		delete router;

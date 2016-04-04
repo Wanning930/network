@@ -117,7 +117,11 @@ bool Router::rtUpdate(in_addr_t dest, in_addr_t src, int cost) {
 	for (; pt != rt.end(); pt++) {
 		if ((*pt)->destIP == dest) {
 			if ((*pt)->nextIP == src) {
-				if ((*pt)->cost != cost + 1 && cost != 16) {
+				if (cost == 16) {
+					(*pt)->cost = 16;
+					result = true;
+				}
+				else if ((*pt)->cost != cost + 1) {
 					(*pt)->cost = cost + 1;
 					result = true;
 				}
@@ -211,7 +215,13 @@ bool Router::recvRip(char *buf) {
 }
 
 void Router::printTable() {
-	
+	pthread_mutex_lock(&rtlock);
+	list<Entry>::iterator pt = rt.begin();
+	for(; pt != rt.end(); pt++) {
+		printf("%s, %d, %s\n", inet_ntoa({destIP}), cost, inet_ntoa({nextIP}));
+	}
+	printf("\n");
+	pthread_mutex_unlock(&rtlock);
 }
 
 void *routerRecv(void *a) {
@@ -352,8 +362,6 @@ bool Router::send(in_addr_t dest, string longMsg) {
 	else {
 		que.push(longMsg);
 	}
-
-
 	
 	while (!que.empty()) {
 		msg = que.front();
