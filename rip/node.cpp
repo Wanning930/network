@@ -119,19 +119,20 @@ bool Node::sendp(int id, char *pkt, size_t len) {
 
 bool Node::recvp(char buffer[]) {
 	socklen_t addrlen = 0;
-	Sockaddr_in sin;	
+	Sockaddr_in sina;	
 	memset((void *)buffer, 0, MAX_IP_LEN);
 	ssize_t len = 0;
-	len = recvfrom(sfd, buffer, MAX_IP_LEN, 0, (Sockaddr *)&sin, &addrlen);
+	len = recvfrom(sfd, buffer, MAX_IP_LEN, 0, (Sockaddr *)&sina, &addrlen);
 	if (len == -1) {
 		perror("socket receive error");
 		return false;
 	}
 
+	printf("socket recv %s\n", inet_ntoa(sina.sin_addr));
 	pthread_t tid = 0;
 	char *arg = (char *)malloc(sizeof(void *) + addrlen + MAX_IP_LEN);
 	memcpy(arg, &router, sizeof(void *));
-	memcpy(arg + sizeof(void *), &sin, addrlen);
+	memcpy(arg + sizeof(void *), &sina, addrlen);
 	memcpy(arg + sizeof(void *) + addrlen, buffer, MAX_IP_LEN);
 
 	pthread_create(&tid, NULL, handler, (void *)arg);

@@ -211,22 +211,23 @@ void *routerRecv(void *a) {
 	Router *router = NULL;
 	memcpy(&router, arg, sizeof(void *));
 	
-	Sockaddr_in sin;
+	Sockaddr_in sina;
 	socklen_t addrlen = sizeof(Sockaddr_in);
-	memcpy(&sin, arg + sizeof(void *), addrlen);
+	memcpy(&sina, arg + sizeof(void *), addrlen);
 
 	char *buf = (char *)malloc(MAX_IP_LEN);
-	memcpy(buf, arg + sizeof(void *), MAX_IP_LEN);
+	memcpy(buf, arg + sizeof(void *) + addrlen, MAX_IP_LEN);
 	
 	free(arg);
 
 	ip_t *iph = (ip_t *)buf;
-	char *ax = inet_ntoa(sin.sin_addr);
-	in_addr_t ay = inet_addr(ax);
-	if (router->findIt(ay) == -1) {
-		printf("receive packet from a down interface\n");
-	}
-	else if (router->isDest(iph->dest)) {
+	// char *ax = inet_ntoa(sina.sin_addr);
+	// in_addr_t ay = inet_addr(ax);
+	// if (router->findIt(ay) == -1) {
+	// 	printf("receive packet from a down interface, %s\n", ax);
+	// }
+	// else 
+	if (router->isDest(iph->dest)) {
 		if (iph->protocal == 0) {
 			printf("recv: %s\n", buf + sizeof(ip_t));
 		}
