@@ -44,7 +44,7 @@ bool Router::startTimer() {
     }  
 
 	struct itimerspec it;  
-    it.it_interval.tv_sec = 2;  
+    it.it_interval.tv_sec = 1;  
     it.it_interval.tv_nsec = 0;  
     it.it_value.tv_sec = 1;  
     it.it_value.tv_nsec = 0;  
