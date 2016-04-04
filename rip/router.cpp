@@ -20,9 +20,10 @@ void timer_thread(union sigval v) {
 string ntoa(struct in_addr in) {
 	static pthread_mutex_t ntoaLock = PTHREAD_MUTEX_INITIALIZER;
 	pthread_mutex_lock(&ntoaLock);
-	char *ret = inet_ntoa({in});
-	string r = ret.to_string();
+	char *ret = inet_ntoa(in);
+	string r(ret);
 	pthread_mutex_unlock(&ntoaLock);
+	return r;
 }
 
 Router::Router(unsigned short p) {
@@ -124,7 +125,7 @@ bool Router::rtUpdate(const in_addr_t dest, const in_addr_t src, int cost) {
 	list<Entry *>::iterator pt = rt.begin();
 	for (; pt != rt.end(); pt++) {
 
-		printf("update dest %s, src %s, cost %d\n", inet_ntoa({dest}), inet_ntoa({src}), cost);
+		printf("update dest %s, src %s, cost %d\n", ntoa({dest}).c_str(), ntoa({src}).c_str(), cost);
 
 		if ((*pt)->destIP == dest) {
 			if ((*pt)->nextIP == src) {
@@ -148,7 +149,7 @@ bool Router::rtUpdate(const in_addr_t dest, const in_addr_t src, int cost) {
 			break; // destination is unique
 		}
 		else if ((*pt)->destIP == src && (*pt)->nextIP == src) {
-		printf("pt->dest %s, src %s\n", inet_ntoa({(*pt)->destIP}), inet_ntoa({src}));
+		printf("pt->dest %s, src %s\n", ntoa({(*pt)->destIP}).c_str(), ntoa({src}).c_str());
 			(*pt)->timeStamp = 0;
 			// no need to change result
 			printf("break 2\n");
@@ -219,7 +220,7 @@ bool Router::recvRip(char *buf) {
 		for (; i < num; i++) {
 			if (rtUpdate(entry->addr, src, entry->cost)) {
 				// send rip update to others
-				// printf("entry->addr %s, src %s, entry->cost %d\n", inet_ntoa({entry->addr}), inet_ntoa({src}), entry->cost);
+				// printf("entry->addr %s, src %s, entry->cost %d\n", ntoa({entry->addr}).c_str(), ntoa({src}).c_str(), entry->cost);
 				flag = true;
 			}
 			entry += 1;
@@ -240,7 +241,7 @@ void Router::printTable() {
 	pthread_mutex_lock(&rtlock);
 	list<Entry *>::iterator pt = rt.begin();
 	for(; pt != rt.end(); pt++) {
-		printf("%s, %d, %s\n", inet_ntoa({(*pt)->destIP}), (*pt)->cost, inet_ntoa({(*pt)->nextIP}));
+		printf("%s, %d, %s\n", ntoa({(*pt)->destIP}).c_str(), (*pt)->cost, ntoa({(*pt)->nextIP}).c_str());
 	}
 	printf("\n");
 	pthread_mutex_unlock(&rtlock);
@@ -263,7 +264,7 @@ void *routerRecv(void *a) {
 	free(arg);
 
 	ip_t *iph = (ip_t *)buf;
-	// char *ax = inet_ntoa(sina.sin_addr);
+	// char *ax = ntoa(sina.sin_addr).c_str();
 	// in_addr_t ay = inet_addr(ax);
 	// if (router->findIt(ay) == -1) {
 	// 	printf("receive packet from a down interface, %s\n", ax);
