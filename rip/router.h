@@ -42,6 +42,7 @@ public:
 	bool isDest(in_addr_t dest);
 	int findIt(in_addr_t dest);
 	bool recvRip(char *buf);
+	bool startTimer();
 	void setActive(int id, bool flag);
 
 private:
