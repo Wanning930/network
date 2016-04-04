@@ -128,7 +128,7 @@ bool Node::recvp(char buffer[]) {
 		return false;
 	}
 
-	printf("socket recv %s\n", inet_ntoa(sina.sin_addr));
+	// printf("socket recv %s\n", inet_ntoa(sina.sin_addr));
 	pthread_t tid = 0;
 	char *arg = (char *)malloc(sizeof(void *) + addrlen + MAX_IP_LEN);
 	memcpy(arg, &router, sizeof(void *));

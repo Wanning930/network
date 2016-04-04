@@ -53,7 +53,7 @@ private:
 	void delIt();
 	bool wrapSend(in_addr_t dest, const char *msg, bool flag);
 	bool rtUpdate(in_addr_t dest, in_addr_t src, int cost);
-	bool sendRip();
+	bool sendRip(bool flag);
 };
 
 #endif

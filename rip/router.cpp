@@ -33,7 +33,11 @@ Router::~Router() {
 }
 
 bool Router::checkTimer() {
-	
+	timeStamp++;
+	if (timeStamp == 5) {
+		timeStamp = 0;
+		sendRip(true);
+	}
 }
 
 bool Router::startTimer() {
@@ -99,7 +103,7 @@ void Router::setActive(int id, bool flag) {
 	pthread_mutex_unlock(&rtlock);
 
 	if (result) {
-		sendRip();
+		sendRip(true);
 	}
 }
 
@@ -188,7 +192,7 @@ bool Router::recvRip(char *buf) {
 	int i = 0;
 	in_addr_t src = iph->src;
 	bool result = true;
-	bool flag = (riph->command == REQUEST)? true : false;
+	bool flag = (riph->cmd == REQUEST)? true : false;
 	if (!flag) {
 		for (; i < num; i++) {
 			if (rtUpdate(entry->addr, src, entry->cost)) {
@@ -206,8 +210,12 @@ bool Router::recvRip(char *buf) {
 	return result;
 }
 
+void Router::printTable() {
+	
+}
+
 void *routerRecv(void *a) {
-	printf("handler function\n");
+	// printf("handler function\n");
 	char *arg = (char *)a;
 
 	Router *router = NULL;
@@ -329,7 +337,7 @@ int Router::findIt(in_addr_t dest) {
 
 bool Router::send(in_addr_t dest, string longMsg) {
 
-	printf("send '%s' to %u\n", longMsg.c_str(), dest);
+	// printf("send '%s' to %u\n", longMsg.c_str(), dest);
 
 	queue<string> que;
 	string msg;
