@@ -22,6 +22,7 @@ Router::Router(unsigned short p) {
 	node->router = this;
 	node->setHandler(routerRecv);
 	pthread_mutex_init(&rtlock, NULL);
+	timeStamp = 0;
 }
 
 Router::~Router() {
@@ -51,8 +52,8 @@ bool Router::startTimer() {
 	struct itimerspec it;  
     it.it_interval.tv_sec = 1;  
     it.it_interval.tv_nsec = 0;  
-    it.it_value.tv_sec = 1;  
-    it.it_value.tv_nsec = 0;  
+    it.it_value.tv_sec = 0;  
+    it.it_value.tv_nsec = 500;  
 	if (timer_settime(timerid, 0, &it, NULL) == -1) {
 		perror("fail to timer_settime"); 
 		return false;
@@ -143,19 +144,20 @@ bool Router::rtUpdate(in_addr_t dest, in_addr_t src, int cost) {
 	return result;
 }
 
-bool Router::sendRip() {
+bool Router::sendRip(bool flag) {
 	pthread_mutex_lock(&rtlock);
 
 	int num = rt.size();
 	size_t pktlen = sizeof(ip_t) + sizeof(rip_t) + num * sizeof(rip_entry_t);
 	char *buf = (char *)malloc(pktlen * sizeof(char));
+	memset(buf, 0, pktlen);
 	ip_t *iph = (ip_t *)buf;
 	rip_t *riph = (rip_t *)(buf + sizeof(ip_t));
 	rip_entry_t *ent = (rip_entry_t *)(buf + sizeof(ip_t) + sizeof(rip_t));
 
 	list<Entry *>::iterator pt = rt.begin();
 
-	riph->cmd = 0;
+	riph->cmd = (flag) ? REPLY : REQUEST;
 	riph->num = rt.size();
 	for (; pt != rt.end(); pt++) {
 		ent->cost = (*pt)->cost;
@@ -185,19 +187,19 @@ bool Router::recvRip(char *buf) {
 	int num = riph->num;
 	int i = 0;
 	in_addr_t src = iph->src;
-	// in_addr_t nextHop;
-	// int cost;
 	bool result = true;
-	bool flag = false;
-	for (; i < num; i++) {
-		if (rtUpdate(entry->addr, src, entry->cost)) {
-			// send rip update to others
-			flag = true;
+	bool flag = (riph->command == REQUEST)? true : false;
+	if (!flag) {
+		for (; i < num; i++) {
+			if (rtUpdate(entry->addr, src, entry->cost)) {
+				// send rip update to others
+				flag = true;
+			}
+			entry += 1;
 		}
-		entry += 1;
 	}
 	if (flag) {
-		if (!sendRip()) {
+		if (!sendRip(true)) {
 			result = false; 
 		}
 	}

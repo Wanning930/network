@@ -20,6 +20,8 @@ using namespace std;
 #define MAX_IP_LEN (1405)
 // #define MAX_IP_LEN (64*1024)
 #define ADDR_LEN (sizeof(struct sockaddr_in))
+#define REQUEST (1)
+#define REPLY (2)
 
 typedef struct sockaddr_in Sockaddr_in;
 typedef struct sockaddr Sockaddr;
