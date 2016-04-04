@@ -46,6 +46,8 @@ public:
 	bool checkTimer();
 	void setActive(int id, bool flag);
 	void printTable();
+	void printInterface();
+	void printRoute();
 
 private:
 	int timeStamp;

@@ -125,6 +125,7 @@ int main(int argc, char *argv[]) {
 		else {
 			switch(parseCmd(cmd)) {
 				case IFCONFIG:
+					router->printInterface();
 					break;
 				case ROUTE:
 					break;

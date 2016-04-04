@@ -1,6 +1,8 @@
 #ifndef PROTOCAL_H
 #define PROTOCAL_H
 
+
+
 struct ip_t {
 	#if __BYTE_ORDER == __LITTLE_ENDIAN
     unsigned int hl:4;		/* header length */
