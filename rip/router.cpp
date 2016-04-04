@@ -17,6 +17,14 @@ void timer_thread(union sigval v) {
 	router->checkTimer();
 }
 
+string ntoa(struct in_addr in) {
+	static pthread_mutex_t ntoaLock = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutex_lock(&ntoaLock);
+	char *ret = inet_ntoa({in});
+	string r = ret.to_string();
+	pthread_mutex_unlock(&ntoaLock);
+}
+
 Router::Router(unsigned short p) {
 	node = new Node(p);
 	node->router = this;
@@ -107,7 +115,7 @@ void Router::setActive(int id, bool flag) {
 	}
 }
 
-bool Router::rtUpdate(in_addr_t dest, in_addr_t src, int cost) {
+bool Router::rtUpdate(const in_addr_t dest, const in_addr_t src, int cost) {
 	// dest and src is 1 hop (in rip entry)
 	pthread_mutex_lock(&rtlock);
 	int i = 0;
@@ -115,6 +123,9 @@ bool Router::rtUpdate(in_addr_t dest, in_addr_t src, int cost) {
 
 	list<Entry *>::iterator pt = rt.begin();
 	for (; pt != rt.end(); pt++) {
+
+		printf("update dest %s, src %s, cost %d\n", inet_ntoa({dest}), inet_ntoa({src}), cost);
+
 		if ((*pt)->destIP == dest) {
 			if ((*pt)->nextIP == src) {
 				if (cost == 16) {
@@ -133,18 +144,24 @@ bool Router::rtUpdate(in_addr_t dest, in_addr_t src, int cost) {
 				(*pt)->timeStamp = 0;
 				result = true;
 			}
+			printf("break 1\n");
 			break; // destination is unique
 		}
 		else if ((*pt)->destIP == src && (*pt)->nextIP == src) {
+		printf("pt->dest %s, src %s\n", inet_ntoa({(*pt)->destIP}), inet_ntoa({src}));
 			(*pt)->timeStamp = 0;
 			// no need to change result
+			printf("break 2\n");
 			break;
 		}
 	}
+	printf("if (pt == rt.end())\n");
+
 	if (pt == rt.end()) {
+		printf("pt == rt.end()\n");
 		result = true;
-		dest = (isDest(dest))? src : dest;
-		Entry *entry = new Entry(dest, cost, src);
+		in_addr_t newdest = (isDest(dest))? src : dest;
+		Entry *entry = new Entry(newdest, cost + 1, src);
 		entry->timeStamp = 0;
 		rt.push_back(entry);
 	}
@@ -193,6 +210,7 @@ bool Router::recvRip(char *buf) {
 	rip_t *riph = (rip_t *)(buf + sizeof(ip_t));
 	rip_entry_t *entry = (rip_entry_t *)((char *)(riph) + sizeof(rip_t));
 	int num = riph->num;
+	printf("receive %d rip entries\n", num);
 	int i = 0;
 	in_addr_t src = iph->src;
 	bool result = true;
@@ -201,11 +219,15 @@ bool Router::recvRip(char *buf) {
 		for (; i < num; i++) {
 			if (rtUpdate(entry->addr, src, entry->cost)) {
 				// send rip update to others
+				// printf("entry->addr %s, src %s, entry->cost %d\n", inet_ntoa({entry->addr}), inet_ntoa({src}), entry->cost);
 				flag = true;
 			}
 			entry += 1;
 		}
 	}
+
+	printTable();
+
 	if (flag) {
 		if (!sendRip(true)) {
 			result = false; 
@@ -216,9 +238,9 @@ bool Router::recvRip(char *buf) {
 
 void Router::printTable() {
 	pthread_mutex_lock(&rtlock);
-	list<Entry>::iterator pt = rt.begin();
+	list<Entry *>::iterator pt = rt.begin();
 	for(; pt != rt.end(); pt++) {
-		printf("%s, %d, %s\n", inet_ntoa({destIP}), cost, inet_ntoa({nextIP}));
+		printf("%s, %d, %s\n", inet_ntoa({(*pt)->destIP}), (*pt)->cost, inet_ntoa({(*pt)->nextIP}));
 	}
 	printf("\n");
 	pthread_mutex_unlock(&rtlock);
@@ -295,7 +317,7 @@ bool Router::wrapSend(in_addr_t destIP, const char *msg, bool flag) {
 	return result;
 }
 
-bool Router::isDest(in_addr_t dest) {
+bool Router::isDest(const in_addr_t dest) {
 	int i = 0;
 	int num = it.size();
 	for (; i < num; i++) {

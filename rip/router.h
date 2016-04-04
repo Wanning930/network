@@ -39,12 +39,13 @@ public:
 	~Router();
 	bool send(in_addr_t dest, string longMsg);
 	bool send(string dest, string msg);
-	bool isDest(in_addr_t dest);
+	bool isDest(const in_addr_t dest);
 	int findIt(in_addr_t dest);
 	bool recvRip(char *buf);
 	bool startTimer();
 	bool checkTimer();
 	void setActive(int id, bool flag);
+	void printTable();
 
 private:
 	int timeStamp;
@@ -52,7 +53,7 @@ private:
 	void delRt();
 	void delIt();
 	bool wrapSend(in_addr_t dest, const char *msg, bool flag);
-	bool rtUpdate(in_addr_t dest, in_addr_t src, int cost);
+	bool rtUpdate(const in_addr_t dest, const in_addr_t src, int cost);
 	bool sendRip(bool flag);
 };
 
