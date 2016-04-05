@@ -8,6 +8,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include "node.h"
+#include <set>
 using namespace std;
 
 struct Entry {
@@ -52,12 +53,14 @@ public:
 
 private:
 	int timeStamp;
+	set<in_addr_t> badAddr;
 
 	void delRt();
 	void delIt();
 	bool wrapSend(in_addr_t dest, const char *msg, bool flag);
 	bool rtUpdate(const in_addr_t dest, const in_addr_t src, int cost);
 	bool sendRip(bool flag);
+	void clearBad();
 };
 
 #endif
