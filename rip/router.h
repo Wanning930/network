@@ -40,6 +40,7 @@ public:
 	bool send(in_addr_t dest, string longMsg);
 	bool send(string dest, string msg);
 	bool isDest(const in_addr_t dest);
+	int findIt(in_addr_t dest, bool flag);
 	int findIt(in_addr_t dest);
 	bool recvRip(char *buf);
 	bool startTimer();

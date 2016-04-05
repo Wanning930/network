@@ -91,7 +91,7 @@ int parseCmd(string cmd) {
 	if (cmd == "ifconfig") {
 		return IFCONFIG;
 	}
-	else if (cmd == "route") {
+	else if (cmd == "routes") {
 		return ROUTE;
 	}
 	else if (cmd == "up") {
@@ -118,6 +118,7 @@ int main(int argc, char *argv[]) {
 	// listen to command line
 	string cmd;
 	bool result = true;
+	int id = -1;
 	while (cin>>cmd) {
 		if (cmd == "exit") {
 			break;
@@ -128,10 +129,15 @@ int main(int argc, char *argv[]) {
 					router->printInterface();
 					break;
 				case ROUTE:
+					router->printRoute();
 					break;
 				case UP:
+					cin>>id;
+					router->setActive(id - 1, true);
 					break;
 				case DOWN:
+					cin>>id;
+					router->setActive(id - 1, false);
 					break;
 				case SEND: {
 					string dest, msg;

@@ -52,10 +52,13 @@ bool Router::checkTimer() {
 	pthread_mutex_lock(&rtlock);
 	bool flag = false;
 	list<Entry *>::iterator pt = rt.begin();
-	for (; pt < rt.end(); pt++) {
+	for (; pt != rt.end(); pt++) {
 		if ((*pt)->timeStamp > EXPIRE) {
 			(*pt)->cost = INFINITY;
 			flag = true;
+		}
+		else if ((*pt)->cost != 0){
+			(*pt)->timeStamp++;
 		}
 	}
 	pthread_mutex_unlock(&rtlock);
@@ -110,9 +113,13 @@ void Router::delIt() {
 }
 
 void Router::setActive(int id, bool flag) {
+	cout<<"in setActive()"<<endl;
 
 	pthread_mutex_lock(&rtlock);
+	cout<<"in rtlock in setActive()"<<endl;
 	list<Entry *>::iterator pt = rt.begin();
+
+	int tmp = -1;
 	if (flag) {
 		for (; pt != rt.end(); pt++) {
 			if ((*pt)->destIP == it[id]->localIP) {
@@ -123,13 +130,17 @@ void Router::setActive(int id, bool flag) {
 	}
 	else {
 		for (; pt != rt.end(); pt++) {
-			if (findIt((*pt)->nextIP) == id) {
+			if (findIt((*pt)->nextIP, false) == id) {
+				(*pt)->cost = INFINITY;
+			}
+			else if ((*pt)->destIP == it[id]->localIP) {
 				(*pt)->cost = INFINITY;
 			}
 		}
 	}
 	pthread_mutex_unlock(&rtlock);
 
+	printTable();
 	sendRip(true);
 	it[id]->active = flag;
 }
@@ -140,15 +151,15 @@ bool Router::rtUpdate(const in_addr_t dest, const in_addr_t src, int cost) {
 	int i = 0;
 	bool result = false;
 
+	cout<<"rtUpdate "<<ntoa({dest})<<" "<<ntoa({src})<<" "<<cost<<endl;
+
 	list<Entry *>::iterator pt = rt.begin();
 	for (; pt != rt.end(); pt++) {
-
-		// printf("update dest %s, src %s, cost %d\n", ntoa({dest}).c_str(), ntoa({src}).c_str(), cost);
-
 		if ((*pt)->destIP == dest) {
 			if ((*pt)->nextIP == src) {
-				if (cost == 16) {
-					(*pt)->cost = 16;
+				if (cost == INFINITY) {
+					(*pt)->cost = INFINITY;
+					(*pt)->timeStamp = 0;
 					result = true;
 				}
 				else if ((*pt)->cost != cost + 1) {
@@ -165,11 +176,12 @@ bool Router::rtUpdate(const in_addr_t dest, const in_addr_t src, int cost) {
 			}
 			break; // destination is unique
 		}
-		// else if ((*pt)->destIP == src && (*pt)->nextIP == src) {
-		// 	(*pt)->timeStamp = 0;
-		// 	printf("break 2\n");
-		// 	break;
-		// }
+		else if (src == dest && cost == INFINITY && (*pt)->nextIP == src) {
+			cout<<"hit!!!!!!!!!"<<endl;
+			(*pt)->cost = INFINITY;
+			(*pt)->timeStamp = 0;
+			result = true;
+		}
 	}
 
 	if (pt == rt.end()) {
@@ -348,10 +360,10 @@ bool Router::isDest(const in_addr_t dest) {
 	return false;
 }
 
-int Router::findIt(in_addr_t dest) {
-	
-	pthread_mutex_lock(&rtlock);
-
+int Router::findIt(in_addr_t dest, bool flag) {
+	if (flag) {
+		pthread_mutex_lock(&rtlock);
+	}
 	list<Entry *>::iterator pt = rt.begin();
 	in_addr_t next = 0;
 	for(; pt != rt.end(); pt++) {
@@ -360,15 +372,19 @@ int Router::findIt(in_addr_t dest) {
 			break;
 		}
 	}
-	
-	pthread_mutex_unlock(&rtlock);
-	
+
 	if (pt == rt.end() || (*pt)->cost >= INFINITY) {
 		printf("no such destination in routing table\n");
+		if (flag) {
+			pthread_mutex_unlock(&rtlock);
+		}
 		return -1;
 	}
 
-	int interface = 0;
+
+	if (flag) {
+		pthread_mutex_unlock(&rtlock);
+	}
 	int inum = it.size();
 	int i = 0;
 	for (; i < inum; i++) {
@@ -385,6 +401,11 @@ int Router::findIt(in_addr_t dest) {
 		return -1;
 	}
 	return i;
+
+}
+
+int Router::findIt(in_addr_t dest) {
+	return findIt(dest, true);	
 }
 
 bool Router::send(in_addr_t dest, string longMsg) {
@@ -420,11 +441,11 @@ bool Router::send(string d, string longMsg) {
 	return send(dest, longMsg);
 }
 
-bool Router::printInterface() {
+void Router::printInterface() {
 	int n = it.size();
 	int i = 0;
 	for (; i < n; i++) {
-		printf("%d ", id + 1);
+		printf("%d ", i + 1);
 		cout<<ntoa({it[i]->localIP});
 		if (it[i]->active) {
 			cout<<" up"<<endl;
@@ -435,15 +456,20 @@ bool Router::printInterface() {
 	}
 }
 
-bool Router::printRoute() {
+void Router::printRoute() {
+
 	pthread_mutex_lock(&rtlock);
 	list<Entry *>::iterator pt = rt.begin();
+	string tmp;
+	int id = 0;
 	for (; pt != rt.end(); pt++) {
 		if ((*pt)->cost == 0 || (*pt)->cost >= INFINITY) {
 			continue;
 		}
-		cout<<ntoa({(*pt)->destIP})<<" ";
-		cout<<findIt(nextIP)<<" ";
+		tmp = ntoa({(*pt)->destIP});
+		cout<<tmp<<" ";
+		id = findIt((*pt)->nextIP, false) + 1;
+		cout<<id<<" ";
 		cout<<(*pt)->cost<<endl;
 	}
 	pthread_mutex_unlock(&rtlock);
