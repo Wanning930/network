@@ -309,19 +309,22 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 			rel_send(r);
 		}
 	}
-	else {
+	else if (!r->client->eof) {
 		pkt->seqno = ntohl(pkt->seqno);
 		no = pkt->seqno;
-		if (packet_isEof(n)) {
+		if (packet_isEof(n) || pkt->data[n - 1] == EOF) {
 			fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~~~~~~ client read eof ~~~~~~~~~~~~~~~~~~~~~~\n");
 			r->client->eof = true;
+			r->client->expect++;
 		}
 		fprintf(stderr, "================================ recv %x, window (%x ~ %x] ======================================\n", no, r->client->last_recv, r->client->last_legal);
-		if ( (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
+		if ((!r->client->eof) && (no > r->client->last_recv) && (no <= r->client->last_legal) ) {
 			/* in the window */
 			if (r->client->window[(no - 1) % RWS]->len != 0) {
 				assert(r->client->window[(no - 1) % RWS]->seqno == no);
 			}
+			fprintf(stderr, "recv pkt length %d\n", pkt->len);
+			fprintf(stderr, "%c\n", pkt->data[9]);
 			memcpy(r->client->window[(no - 1) % RWS], pkt, sizeof(packet_t));
 			if (r->client->expect == no) {
 				while (r->client->window[(r->client->expect - 1) % RWS]->len != 0) {
@@ -401,7 +404,7 @@ void rel_read (rel_t *r)
 			switch(length) {
 				case -1:
 					r->server->eof = true;
-					buffer_enque_c(r->server->buffer, NULL, 0);
+					buffer_enque_c(r->server->buffer, buf, 0);
 					kill = true;
 					break;
 				case PKT_LEN:
@@ -409,9 +412,13 @@ void rel_read (rel_t *r)
 					memset(buf, 0, sizeof(char) * PKT_LEN);
 					break;
 				default:
+					// fprintf(stderr, "should be eof %d\n", buf[length - 1]);
+					// assert(buf[length - 1] == EOF);
 					r->server->eof = true;
 					buffer_enque_c(r->server->buffer, buf, (uint16_t)length);
-					buffer_enque_c(r->server->buffer, NULL, 0);
+					memset(buf, 0, sizeof(char) * PKT_LEN);
+					buf[0] = EOF;
+					buffer_enque_c(r->server->buffer, buf, 0);
 					kill = true;
 					break;
 			}
@@ -427,7 +434,7 @@ void rel_output (rel_t *r)
 	while (!buffer_isEmpty(r->client->buffer)) {
 		if (conn_bufspace(r->c) >= r->client->buffer->head->next->len) {
 			tmp = buffer_deque(r->client->buffer);
-			conn_output(r->c, (void *)tmp->data, (size_t)tmp->len - 12);
+			conn_output(r->c, (void *)tmp->data, (size_t)tmp->len - PKT_HDR);
 			free(tmp);
 			tmp = NULL;
 		}
