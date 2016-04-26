@@ -216,9 +216,11 @@ rel_t *rel_create (conn_t *c, const struct sockaddr_storage *ss,
 		ack.ackno = htonl(0);
 		ack.cksum = cksum((const void *)(&ack) + CKSUM_LEN, ACK_LEN - CKSUM_LEN);
 		conn_sendpkt(r->c, (const packet_t *)(&ack), ACK_LEN);
+		fprintf(stderr, "send ack %d \n", ack.ackno);
 	}
 	else {
 		r->flag = SENDER;
+		r->client->eof = true;
 	}
 
 	return r;
@@ -270,6 +272,7 @@ void rel_demux (const struct config_common *cc, const struct sockaddr_storage *s
 
 void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
+	fprintf(stderr, "get a pkt\n");
 	seqno_t SWS = r->server->SWS;
 	seqno_t RWS = r->client->RWS;
 	if (pkt->cksum != cksum((void *)pkt + CKSUM_LEN, n - CKSUM_LEN)) {
@@ -287,12 +290,12 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	}
 
 	if (packet_isAck(n)) {
-		if (pkt->ackno == 0) {
+		fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~ receive ack no = %d ~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", pkt->ackno);
+		if (pkt->ackno <= 1) {
 			// I'm server, close client
 			r->client->eof = true;
 		}
 		else {
-			fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~ receive ack no = %d ~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", pkt->ackno);
 			while (pkt->ackno - r->server->last_acked > 1) {
 				r->server->last_acked++;
 				if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
@@ -393,22 +396,24 @@ void rel_read (rel_t *r)
 		char *buf = malloc(sizeof(char) * PKT_LEN);
 		memset(buf, 0, sizeof(char) * PKT_LEN);
 		int length = 0;
-		while ((length = conn_input(r->c, (void *)buf, PKT_LEN)) != 0) {
-			if (length == -1) {
-				length = 0;
-				r->server->eof = true;
-				fprintf(stderr, "sender read eof\n");
-				buffer_enque_c(r->server->buffer, buf, 0);
-				break;
-			}
-			else if (length < PKT_LEN) {
-				r->server->eof = true;
-				buffer_enque_c(r->server->buffer, buf, (uint16_t)length);
-				break;
-			}
-			else {
-				buffer_enque_c(r->server->buffer, buf, (uint16_t)length);
-				memset(buf, 0, sizeof(char) * PKT_LEN);
+		bool kill = false;
+		while (!kill && (length = conn_input(r->c, (void *)buf, PKT_LEN)) != 0) {
+			switch(length) {
+				case -1:
+					r->server->eof = true;
+					buffer_enque_c(r->server->buffer, NULL, 0);
+					kill = true;
+					break;
+				case PKT_LEN:
+					buffer_enque_c(r->server->buffer, buf, (uint16_t)length);
+					memset(buf, 0, sizeof(char) * PKT_LEN);
+					break;
+				default:
+					r->server->eof = true;
+					buffer_enque_c(r->server->buffer, buf, (uint16_t)length);
+					buffer_enque_c(r->server->buffer, NULL, 0);
+					kill = true;
+					break;
 			}
 		}
 		free(buf);
