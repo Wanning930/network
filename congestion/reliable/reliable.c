@@ -69,7 +69,7 @@ struct reliable_server { /* send data packet and wait for ack */
 	seqno_t SWS;
 	seqno_t last_acked;
 	seqno_t last_sent;
-	packet_t **packet_window; /* last_acked < x <= last_sent might retransmit later, size = adWindow*/
+	packet_t **packet_window; /* last_acked < x <= last_sent might retransmit later, size = ad_window*/
 	timespec_t **time_window;
 	seqno_t dup;
 	bool dup_flag; // false and dup == ackno, fast retransmit
@@ -81,6 +81,7 @@ struct reliable_server { /* send data packet and wait for ack */
 	bool ff;
 	double est_rtt;
 	double dev_rtt;
+	seqno_t effect_window;
 };
 
 struct reliable_state {
@@ -226,6 +227,7 @@ rel_t *rel_create (conn_t *c, const struct sockaddr_storage *ss,
 	r->ff = false; // true: fast retransmit; false: slow start
 	r->server->est_rtt = 0.0;
 	r->server->dev_rtt = 0.0;
+	r->server->effect_window = 1;
 
 	if (cc->sender_receiver == RECEIVER) {
 		r->flag = RECEIVER;
@@ -316,6 +318,9 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 			r->client->eof = true;
 		}
 		else {
+			// effective window
+			r->server->effect_window = pkt->rwnd - (r->server->last_sent - r->server->last_acked + 1);
+
 			// detect 3 dup acks
 			if (pkt->ackno == r->server->dup) {
 				if (r->server->dup_flag) {
@@ -340,14 +345,14 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 
 			// effective ack
 			if (pkt->ackno - r->server->last_acked > 1) {
-				if (r->server->ff) {
+				if (r->server->ff) { // fast retransmit
 					r->server->cwnd_cnt += (pkt->ackno - r->server->last_acked - 1);
 					if (r->server->cwnd_cnt >= r->server->cwnd) {
 						r->server->cwnd++;
 						r->server->cwnd_cnt = 0;
 					}
 				}	
-				else {
+				else { // slow start
 					r->server->cwnd++;
 				}				
 				while (pkt->ackno - r->server->last_acked > 1) {
@@ -396,8 +401,8 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		ack_t ack;
 		ack.len = htons(ACK_LEN);
 		ack.ackno = htonl(r->client->expect);
-		int adWindow = RWS - (r->client->expect - r->client->last_acked);
-		ack.rwnd = htonl(adWindow);
+		int ad_window = RWS - (r->client->expect - r->client->last_acked);
+		ack.rwnd = htonl(ad_window);
 		ack.cksum = cksum ((const void *)(&ack) + CKSUM_LEN, ACK_LEN - CKSUM_LEN); 
 		conn_sendpkt (r->c, (const packet_t *)&ack, ACK_LEN);
 	}
@@ -409,6 +414,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 
 void rel_send(rel_t *r) {
 	seqno_t SWS = r->server->SWS;
+	seqno_t window_size = (r->server->cwnd > r->server->effect_window)? (r->server->effect_window):(r->server->cwnd);
 	while ((r->server->last_sent - r->server->last_acked < SWS) && (!buffer_isEmpty(r->server->buffer))) {
 	// fprintf(stderr, "r->server->last_sent %d, r->server->last_acked %d\n", r->server->last_sent, r->server->last_acked);
 		r->server->last_sent++;
