@@ -37,7 +37,7 @@ bool buffer_isEmpty(buffer_t *buffer);
 bool packet_isAck(size_t n);
 void rel_send(rel_t *r);
 bool packet_isEof(size_t n);
-void throughput(timespec_t *t1, timespec_t *t2);
+void throughput(rel_t *r, timespec_t *t1, timespec_t *t2);
 
 struct reliable_client {
 	seqno_t RWS;
@@ -242,7 +242,7 @@ void rel_destroy (rel_t *r)
 		interval = (now.tv_sec * 1000000 + now.tv_nsec);
 		interval -= r->server->record->tv_nsec * 1000000 + r->server->record->tv_nsec;
 		int total = interval/1000000;
-		fprintf(stderr, "Total time: %d\n", total);
+		fprintf(stderr, "Total time: %d ms\n", total);
 	}
 
 
@@ -327,7 +327,6 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 			if (r->client->window[(no - 1) % RWS]->len != 0) {
 				assert(r->client->window[(no - 1) % RWS]->seqno == no);
 			}
-			fprintf(stderr, "%c\n", pkt->data[9]);
 			memcpy(r->client->window[(no - 1) % RWS], pkt, sizeof(packet_t));
 			if (r->client->expect == no) {
 				while (r->client->window[(r->client->expect - 1) % RWS]->len != 0) {
@@ -463,23 +462,24 @@ void rel_timer ()
 			if (interval > (long)r->timeout) {
 				// fprintf(stderr, ".................. retransmit send seqno = %d len = %zu........................\n", ntohl(r->server->packet_window[idx]->seqno), (size_t)ntohs(r->server->packet_window[idx]->len));
 				conn_sendpkt (r->c, r->server->packet_window[idx], ntohs(r->server->packet_window[idx]->len));
-				r->server->tpt++;
 				clock_gettime(CLOCK_REALTIME, r->server->time_window[idx]);
 			}
 		}
 	}
 	else if (r != NULL && r->flag == RECEIVER) {
-		throughput(&now, r->record);
+		throughput(r, &now, r->server->record);
 	}
 
 }
 
-void throughput(timespec_t *t1, timespec_t *t2) {	
-	int sec = (int)(t2->tv_sec - t1->tv_sec);
-	if (sec % 3 == 0) {
+void throughput(rel_t *r, timespec_t *t1, timespec_t *t2) {	
+	long sec = (long)(t1->tv_sec - t2->tv_sec)*1000000000 + (t1->tv_nsec - t2->tv_nsec);
+	sec /= 1000000; //ms
+	if (sec != 0 && sec % 10 == 0) { //0.01s
 		int amount = r->client->tpt * (PKT_HDR + PKT_LEN);
-		double result = 8 * (double)amount/(double)sec;
+		double result = (8.0 * (double)amount * 1000.0)/(double)sec;
 		fprintf(stderr, "throughput sample %f\n", result);
+		r->client->tpt = 0;
 	}
 	
 }
