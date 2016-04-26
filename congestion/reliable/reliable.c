@@ -324,6 +324,27 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 	}
 }
 
+void rel_send(rel_t *r) {
+	seqno_t SWS = r->server->SWS;
+	while ((r->server->last_sent - r->server->last_acked < SWS) && (!buffer_isEmpty(r->server->buffer))) {
+	// fprintf(stderr, "r->server->last_sent %d, r->server->last_acked %d\n", r->server->last_sent, r->server->last_acked);
+		r->server->last_sent++;
+		r->server->packet_window[(r->server->last_sent - 1) % SWS] = buffer_deque(r->server->buffer);
+		packet_t *tmp = r->server->packet_window[(r->server->last_sent - 1) % SWS];
+		if (packet_isEof(tmp->len)) {
+			r->server->eof = true;
+		}
+		tmp->ackno = htonl(r->client->expect);
+		tmp->seqno = htonl(r->server->last_sent);
+		tmp->len = htons(tmp->len);
+		tmp->cksum = cksum ((const void *)(tmp) + CKSUM_LEN, ntohs(tmp->len) - CKSUM_LEN);
+		fprintf(stderr, ".................. send seqno = %d len = %zu........................\n", ntohl(tmp->seqno), (size_t)ntohs(tmp->len));
+		conn_sendpkt (r->c, tmp, ntohs(tmp->len));
+		timespec_t *ti = malloc(sizeof(timespec_t));
+		clock_gettime (CLOCK_REALTIME, ti);
+		r->server->time_window[(r->server->last_sent - 1) % SWS] = ti;
+	}
+}
 
 void rel_read (rel_t *r)
 {
