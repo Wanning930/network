@@ -68,6 +68,7 @@ struct reliable_server { /* send data packet and wait for ack */
 	timespec_t **time_window;
 	buffer_t *buffer;
 	bool eof;
+	timespec_t *record;
 };
 
 struct reliable_state {
@@ -202,6 +203,8 @@ rel_t *rel_create (conn_t *c, const struct sockaddr_storage *ss,
 	r->server->buffer->tail = r->server->buffer->head;
 	r->server->buffer->size = 0;
 	r->server->eof = false;
+	r->server->record = (timespec_t *)malloc(sizeof(timespec_t));
+	clock_gettime(CLOCK_REALTIME, &r->server->record);
 
 	if (cc->sender_receiver == RECEIVER) {
 		// send ACK
@@ -219,6 +222,15 @@ rel_t *rel_create (conn_t *c, const struct sockaddr_storage *ss,
 void rel_destroy (rel_t *r)
 {
 	conn_destroy (r->c);
+
+	/* Print time */
+	timespec_t now;
+	clock_gettime(CLOCK_REALTIME, &now);
+	long interval;
+	interval = (now.tv_sec * 1000000 + now.tv_nsec);
+	interval -= r->server->record->tv_nsec * 1000000 + r->server->record->tv_nsec;
+	printf("Total time: %l\n", interval);
+
 
 	/* Free any other allocated memory here */
 	int i = 0; 
@@ -268,7 +280,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 
 	if (packet_isAck(n)) {
 		if (pkt->ackno == 0) {
-			// I'm server
+			// I'm server, close client
 			r->client->eof = true;
 		}
 		while (pkt->ackno - r->server->last_acked > 1) {
