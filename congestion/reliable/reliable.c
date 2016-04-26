@@ -21,7 +21,6 @@ typedef struct reliable_server server_t;
 typedef uint32_t seqno_t;
 typedef struct timespec timespec_t;
 typedef struct packet_node pnode_t;
-typedef struct time_node tnode_t;
 typedef struct reliable_buffer buffer_t;
 // typedef struct reliable_state rel_t;
 typedef struct ack_packet ack_t;
@@ -47,7 +46,7 @@ struct reliable_client {
 	packet_t **window; /* ordered and overwritten, size = RWS */
 	buffer_t *buffer;
 	bool eof;
-}
+};
 
 struct packet_node {
 	uint16_t len;
@@ -59,14 +58,14 @@ struct reliable_buffer {
 	pnode_t *head;
 	pnode_t *tail;
 	int size;
-}
+};
 
 struct reliable_server { /* send data packet and wait for ack */
 	seqno_t SWS;
 	seqno_t last_acked;
 	seqno_t last_sent;
-	pnode_t *packet_window; /* last_acked < x <= last_sent might retransmit later, size = adWindow*/
-	tnode_t *time_window;
+	packet_t **packet_window; /* last_acked < x <= last_sent might retransmit later, size = adWindow*/
+	timespec_t **time_window;
 	buffer_t *buffer;
 	bool eof;
 };
@@ -92,7 +91,7 @@ void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len) {
 	}
 	else {
 		node->content = malloc(sizeof(char) * len);
-		memcpy(node->content, data, sizefo(char) * len);
+		memcpy(node->content, data, sizeof(char) * len);
 	}
 	node->len = len;
 	node->next = NULL;
@@ -193,7 +192,7 @@ rel_t *rel_create (conn_t *c, const struct sockaddr_storage *ss,
 	r->server->packet_window = malloc((r->server->SWS) * sizeof(packet_t *));
 	memset (r->server->packet_window, 0, (r->server->SWS) * sizeof(packet_t *));
 	for (i = 0; i < cc->window; i++) {
-		r->server->packet_window[i] = malloc(sizeof(packet_t));
+		r->server->packet_window[i] = (packet_t *)malloc(sizeof(packet_t));
 	}
 	r->server->time_window = malloc((r->server->SWS) * sizeof(timespec_t *));
 	memset (r->server->time_window, 0, (r->server->SWS) * sizeof(timespec_t *));
@@ -354,14 +353,14 @@ void rel_read (rel_t *r)
 			if (length == -1) {
 				length = 0;
 				r->server->eof = true;
-				buffer_enque_c(r->server-buffer, buf, 0);
+				buffer_enque_c(r->server->buffer, buf, 0);
 				break;
 			}
-			buffer_enqueue_c(r->server->buffer, buf, (uint16_t)length);
+			buffer_enque_c(r->server->buffer, buf, (uint16_t)length);
 			memset(buf, 0, sizeof(char) * PKT_LEN);
 		}
 		free(buf);
-		rel_send(s);
+		rel_send(r);
 	}
 }
 
@@ -390,7 +389,7 @@ void rel_timer ()
 	rel_t *r = rel_list;
 	long interval;
 	int idx = 0;
-	while (r != NULL) {
+	if (r != NULL) {
 		for (i = r->server->last_acked + 1; i <= r->server->last_sent; i++) {
 			idx = (i - 1) % r->server->SWS;
 			interval = (now.tv_sec * 1000000 + now.tv_nsec);
@@ -401,6 +400,5 @@ void rel_timer ()
 				clock_gettime(CLOCK_REALTIME, r->server->time_window[idx]);
 			}
 		}
-		r = r->next;
 	}
 }
