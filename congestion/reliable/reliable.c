@@ -29,6 +29,8 @@ typedef struct ack_packet ack_t;
 #define PKT_HDR 16
 #define PKT_LEN 1000
 #define CKSUM_LEN (sizeof(uint16_t))
+#define ALPHA (0.125)
+#define BETA (0.25)
 
 void buffer_enque_c(buffer_t *buffer, char *data, uint16_t len);
 void buffer_enque_p(buffer_t *buffer, packet_t *packet);
@@ -38,6 +40,7 @@ bool packet_isAck(size_t n);
 void rel_send(rel_t *r);
 bool packet_isEof(size_t n);
 void throughput(timespec_t *t1, timespec_t *t2);
+void update_rtt(rel_t *r);
 
 struct reliable_client {
 	seqno_t RWS;
@@ -68,10 +71,16 @@ struct reliable_server { /* send data packet and wait for ack */
 	seqno_t last_sent;
 	packet_t **packet_window; /* last_acked < x <= last_sent might retransmit later, size = adWindow*/
 	timespec_t **time_window;
+	seqno_t dup;
+	bool dup_flag; // false and dup == ackno, fast retransmit
 	buffer_t *buffer;
 	bool eof;
 	timespec_t *record;
-	
+	seqno_t cwnd;
+	seqno_t cwnd_cnt;
+	bool ff;
+	double est_rtt;
+	double dev_rtt;
 };
 
 struct reliable_state {
@@ -82,7 +91,7 @@ struct reliable_state {
 	int flag;
 	client_t *client;
 	server_t *server;
-	int timeout;
+	int timeout; //millisecond
 
 };
 rel_t *rel_list;
@@ -202,6 +211,8 @@ rel_t *rel_create (conn_t *c, const struct sockaddr_storage *ss,
 	}
 	r->server->time_window = malloc((r->server->SWS) * sizeof(timespec_t *));
 	memset (r->server->time_window, 0, (r->server->SWS) * sizeof(timespec_t *));
+	r->server->dup = 0;
+	r->server->dup_flag = true;
 	r->server->buffer = malloc(sizeof(buffer_t));
 	r->server->buffer->head = malloc(sizeof(pnode_t));
 	memset (r->server->buffer->head, 0, sizeof(pnode_t));
@@ -210,6 +221,11 @@ rel_t *rel_create (conn_t *c, const struct sockaddr_storage *ss,
 	r->server->eof = false;
 	r->server->record = (timespec_t *)malloc(sizeof(timespec_t));
 	clock_gettime(CLOCK_REALTIME, r->server->record);
+	r->server->cwnd = 1;
+	r->server->cwnd_cnt = 0;
+	r->ff = false; // true: fast retransmit; false: slow start
+	r->server->est_rtt = 0.0;
+	r->server->dev_rtt = 0.0;
 
 	if (cc->sender_receiver == RECEIVER) {
 		r->flag = RECEIVER;
@@ -300,15 +316,48 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 			r->client->eof = true;
 		}
 		else {
-			while (pkt->ackno - r->server->last_acked > 1) {
-				r->server->last_acked++;
-				if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
-					assert(r->server->eof == true);
+			// detect 3 dup acks
+			if (pkt->ackno == r->server->dup) {
+				if (r->server->dup_flag) {
+					r->server->dup_flag = false; 
 				}
-				free(r->server->time_window[(r->server->last_acked - 1) % SWS]);
-				r->server->time_window[(r->server->last_acked - 1) % SWS] = NULL;
-				free(r->server->packet_window[(r->server->last_acked - 1) % SWS]);
-				r->server->packet_window[(r->server->last_acked - 1) % SWS] = NULL;
+				else {
+					// fast retransmit
+					ff = true;
+					r->server->cwnd = r->server->cwnd / 2;
+					fprintf(stderr, "pkt->ackno = %d, fast retransmit\n", pkt->ackno);
+					int idx = (pkt->ackno - 1) % SWS;
+					conn_sendpkt (r->c, r->server->packet_window[idx], ntohs(r->server->packet_window[idx]->len));
+					clock_gettime(CLOCK_REALTIME, r->server->time_window[idx]);	
+					r->server->dup = 0; // clear duplication count, different from anyone
+					r->server->dup_flag = true;
+				}
+			}
+			else {
+				r->server->dup = pkt->ackno;
+				r->server->dup_flag = true;
+			}
+
+			// effective ack
+			if (pkt->ackno - r->server->last_acked > 1) {
+				if (r->server->ff) {
+					r->server->cwnd_cnt += (pkt->ackno - r->server->last_acked - 1);
+					if (r->server->cwnd_cnt >= r->server->cwnd) {
+						r->server->cwnd++;
+						r->server->cwnd_cnt = 0;
+					}
+				}	
+				else {
+					r->server->cwnd++;
+				}				
+				while (pkt->ackno - r->server->last_acked > 1) {
+					r->server->last_acked++;
+					free(r->server->time_window[(r->server->last_acked - 1) % SWS]);
+					r->server->time_window[(r->server->last_acked - 1) % SWS] = NULL;
+					free(r->server->packet_window[(r->server->last_acked - 1) % SWS]);
+					r->server->packet_window[(r->server->last_acked - 1) % SWS] = NULL;
+					update_rtt(r);
+				}
 			}
 			rel_send(r);
 		}
@@ -347,6 +396,8 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 		ack_t ack;
 		ack.len = htons(ACK_LEN);
 		ack.ackno = htonl(r->client->expect);
+		int adWindow = RWS - (r->client->expect - r->client->last_acked);
+		ack.rwnd = htonl(adWindow);
 		ack.cksum = cksum ((const void *)(&ack) + CKSUM_LEN, ACK_LEN - CKSUM_LEN); 
 		conn_sendpkt (r->c, (const packet_t *)&ack, ACK_LEN);
 	}
@@ -463,7 +514,6 @@ void rel_timer ()
 			if (interval > (long)r->timeout) {
 				// fprintf(stderr, ".................. retransmit send seqno = %d len = %zu........................\n", ntohl(r->server->packet_window[idx]->seqno), (size_t)ntohs(r->server->packet_window[idx]->len));
 				conn_sendpkt (r->c, r->server->packet_window[idx], ntohs(r->server->packet_window[idx]->len));
-				r->server->tpt++;
 				clock_gettime(CLOCK_REALTIME, r->server->time_window[idx]);
 			}
 		}
@@ -482,4 +532,14 @@ void throughput(timespec_t *t1, timespec_t *t2) {
 		fprintf(stderr, "throughput sample %f\n", result);
 	}
 	
+}
+
+void update_rtt(rel_t *r, seqno_t idx) {
+	timespec_t now;
+	clock_gettime(CLOCK_REALTIME, &now);
+	double sample = (now.tv_sec - r->server->time_window[(idx - 1) % SWS]) * 1000; //ms
+	est_rtt = (1 - ALPHA) * est_rtt + ALPHA * sample;
+	double diff = (sample > est_rtt)? (sample - est_rtt):(est_rtt - sample); 
+	dev_rtt = (1 - BETA) * dev_rtt + BETA * diff;
+	r->timeout = (int)(est_rtt + 4 * dev_rtt);
 }
