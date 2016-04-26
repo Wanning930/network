@@ -1,0 +1,52 @@
+README
+-----------------------------------------------------------------------------
+layer 0: node
+	data:
+		local port
+		nface table: [interface id, remote port, remote saddr_in]
+	func:
+		sendPacket(interface id, message)
+		recvPacket() // polling since node created
+			create thread with rip.recvMessage()
+
+layer 1: router
+	data:
+		routing table: [destination ip, cost, nexthop ip]
+		routing table lock
+		rface table: [nexthop ip, interface id, local ip]
+	func:
+		sendMessage(destination IP, message)
+			loop up interface in routing table
+			call node.sendPacket(interface id, message)
+		recvMessage()
+
+layer 2: app
+	take cmd input: 
+		call router.sendMessage(destination IP, message)
+		call router.upIface(interface id) / downIface(interface id)
+		call router.showTable()
+		call router.showIface()
+
+-----------------------------------------------------------------------------
+main thread: 
+	. app receive input file
+	. app initialize router
+	. router initialize node
+	. wait for command line input
+
+rip timeout thread:
+	. initialize in router constructor
+	. call node.sendPacket() to send tip reply
+
+rip polling thread:
+	. check rip entries, if exceed 12s, set metric 16
+
+------------------------------------------------------------------------------
+routing table entry update:
+	1. no such destination
+	2. received distance < current distance - 1
+	3. for this entry, the message is from next hop, and the distance changes
+
+------------------------------------------------------------------------------
+new/free: class or struct with constructor
+malloc/free: struct without constructor
