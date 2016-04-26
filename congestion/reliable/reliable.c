@@ -39,7 +39,7 @@ bool buffer_isEmpty(buffer_t *buffer);
 bool packet_isAck(size_t n);
 void rel_send(rel_t *r);
 bool packet_isEof(size_t n);
-void throughput(timespec_t *t1, timespec_t *t2, rel_t *r);
+void throughput(rel_t *r, timespec_t *t1, timespec_t *t2);
 void update_rtt(rel_t *r, seqno_t idx);
 
 struct reliable_client {
@@ -526,17 +526,19 @@ void rel_timer ()
 		}
 	}
 	else if (r != NULL && r->flag == RECEIVER) {
-		throughput(&now, r->record, r);
+		throughput(r, &now, r->record);
 	}
 
 }
 
-void throughput(timespec_t *t1, timespec_t *t2, rel_t *r) {	
-	int sec = (int)(t1->tv_sec - t2->tv_sec);
-	if (sec % 3 == 0) {
+void throughput(rel_t *r, timespec_t *t1, timespec_t *t2) {	
+	long sec = (long)(t1->tv_sec - t2->tv_sec)*1000000000 + (t1->tv_nsec - t2->tv_nsec);
+	sec /= 1000000; //ms
+	if (sec != 0 && sec % 10 == 0) { //0.01s
 		int amount = r->client->tpt * (PKT_HDR + PKT_LEN);
-		double result = 8 * (double)amount/(double)sec;
+		double result = (8.0 * (double)amount * 1000.0)/(double)sec;
 		fprintf(stderr, "throughput sample %f\n", result);
+		r->client->tpt = 0;
 	}
 	
 }
