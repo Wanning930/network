@@ -76,6 +76,7 @@ struct reliable_state {
 	conn_t *c;			/* This is the connection object */
 
 	/* Add your own data fields below this */
+	int flag;
 	client_t *client;
 	server_t *server;
 	int timeout;
@@ -204,9 +205,10 @@ rel_t *rel_create (conn_t *c, const struct sockaddr_storage *ss,
 	r->server->buffer->size = 0;
 	r->server->eof = false;
 	r->server->record = (timespec_t *)malloc(sizeof(timespec_t));
-	clock_gettime(CLOCK_REALTIME, &r->server->record);
+	clock_gettime(CLOCK_REALTIME, r->server->record);
 
 	if (cc->sender_receiver == RECEIVER) {
+		r->flag = RECEIVER;
 		// send ACK
 		r->server->eof = true;
 		ack_t ack;
@@ -214,6 +216,9 @@ rel_t *rel_create (conn_t *c, const struct sockaddr_storage *ss,
 		ack.ackno = htonl(0);
 		ack.cksum = cksum((const void *)(&ack) + CKSUM_LEN, ACK_LEN - CKSUM_LEN);
 		conn_sendpkt(r->c, (const packet_t *)(&ack), ACK_LEN);
+	}
+	else {
+		r->flag = SENDER;
 	}
 
 	return r;
@@ -223,13 +228,16 @@ void rel_destroy (rel_t *r)
 {
 	conn_destroy (r->c);
 
-	/* Print time */
-	timespec_t now;
-	clock_gettime(CLOCK_REALTIME, &now);
-	long interval;
-	interval = (now.tv_sec * 1000000 + now.tv_nsec);
-	interval -= r->server->record->tv_nsec * 1000000 + r->server->record->tv_nsec;
-	printf("Total time: %l\n", interval);
+	if (r->flag == SENDER) {
+		/* Print time */
+		timespec_t now;
+		clock_gettime(CLOCK_REALTIME, &now);
+		long interval;
+		interval = (now.tv_sec * 1000000 + now.tv_nsec);
+		interval -= r->server->record->tv_nsec * 1000000 + r->server->record->tv_nsec;
+		int total = interval/1000000;
+		fprintf(stderr, "Total time: %d\n", total);
+	}
 
 
 	/* Free any other allocated memory here */
@@ -283,17 +291,20 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 			// I'm server, close client
 			r->client->eof = true;
 		}
-		while (pkt->ackno - r->server->last_acked > 1) {
-			r->server->last_acked++;
-			if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
-				assert(r->server->eof == true);
+		else {
+			fprintf(stderr, "~~~~~~~~~~~~~~~~~~~~ receive ack no = %d ~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", pkt->ackno);
+			while (pkt->ackno - r->server->last_acked > 1) {
+				r->server->last_acked++;
+				if (packet_isEof(r->server->packet_window[(r->server->last_acked - 1) % SWS]->len)) {
+					assert(r->server->eof == true);
+				}
+				free(r->server->time_window[(r->server->last_acked - 1) % SWS]);
+				r->server->time_window[(r->server->last_acked - 1) % SWS] = NULL;
+				free(r->server->packet_window[(r->server->last_acked - 1) % SWS]);
+				r->server->packet_window[(r->server->last_acked - 1) % SWS] = NULL;
 			}
-			free(r->server->time_window[(r->server->last_acked - 1) % SWS]);
-			r->server->time_window[(r->server->last_acked - 1) % SWS] = NULL;
-			free(r->server->packet_window[(r->server->last_acked - 1) % SWS]);
-			r->server->packet_window[(r->server->last_acked - 1) % SWS] = NULL;
+			rel_send(r);
 		}
-		rel_send(r);
 	}
 	else {
 		pkt->seqno = ntohl(pkt->seqno);
@@ -386,11 +397,19 @@ void rel_read (rel_t *r)
 			if (length == -1) {
 				length = 0;
 				r->server->eof = true;
+				fprintf(stderr, "sender read eof\n");
 				buffer_enque_c(r->server->buffer, buf, 0);
 				break;
 			}
-			buffer_enque_c(r->server->buffer, buf, (uint16_t)length);
-			memset(buf, 0, sizeof(char) * PKT_LEN);
+			else if (length < PKT_LEN) {
+				r->server->eof = true;
+				buffer_enque_c(r->server->buffer, buf, (uint16_t)length);
+				break;
+			}
+			else {
+				buffer_enque_c(r->server->buffer, buf, (uint16_t)length);
+				memset(buf, 0, sizeof(char) * PKT_LEN);
+			}
 		}
 		free(buf);
 		rel_send(r);
