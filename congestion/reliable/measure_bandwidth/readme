@@ -1,0 +1,3 @@
+the sender keeps sending udp pkt to the relayer
+the relayer relays these pkts to receiver, some pkts may get lost by the relayer
+the receiver keeps receiving pkts. after 30s, the receiver print out {(number of recived bits) / time} to get the throughput of the relayer
