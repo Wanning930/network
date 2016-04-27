@@ -203,7 +203,7 @@ rel_t *rel_create (conn_t *c, const struct sockaddr_storage *ss,
 
 	/* server initialization */
 	// r->timeout = cc->timeout;
-	r->timeout = 200000000;
+	r->timeout = 2 * 1000 * 1000 * 100;
 	r->server = malloc(sizeof(server_t));
 	memset(r->server, 0, sizeof(server_t));
 	r->server->SWS = 200; // r->server->SWS = cc->window;
@@ -258,11 +258,12 @@ void rel_destroy (rel_t *r)
 		/* Print time */
 		timespec_t now;
 		clock_gettime(CLOCK_REALTIME, &now);
-		long interval;
-		interval = (now.tv_sec * 1000000 + now.tv_nsec);
-		interval -= r->record->tv_nsec * 1000000 + r->record->tv_nsec;
-		int total = interval/1000000;
-		fprintf(stderr, "Total time: %d\n", total);
+		long interval = 1000000000 * (now.tv_sec - r->record->tv_sec) - (now.tv_nsec - r->record->tv_nsec);
+		double total = (double)interval/1000000; // ms
+		fprintf(stderr, "Total time: %f ms\n", total);
+		long amount = r->server->last_sent * (PKT_HDR + PKT_LEN) * 8;
+		double rate = (double)amount * 1000.0 / total;
+		fprintf(stderr, "Average throughput: %f\n", rate);
 	}
 
 
@@ -358,7 +359,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 				}	
 				else { // slow start
 					r->server->cwnd++;
-					printf("cwnd = %d\n", r->server->cwnd);
+					fprintf(stderr, "cwnd = %d\n", r->server->cwnd);
 				}				
 				while (pkt->ackno - r->server->last_acked > 1) {
 					r->server->last_acked++;
@@ -420,7 +421,7 @@ void rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 void rel_send(rel_t *r) {
 	seqno_t SWS = r->server->SWS;
 	seqno_t window_size = (r->server->cwnd > r->server->effect_window)? (r->server->effect_window):(r->server->cwnd);
-	printf("window size %d\n", window_size);
+	fprintf(stderr, "window size %d\n", window_size);
 	while ((r->server->last_sent - r->server->last_acked < window_size) && (!buffer_isEmpty(r->server->buffer))) {
 		fprintf(stderr, "r->server->last_sent %d, r->server->last_acked %d\n", r->server->last_sent, r->server->last_acked);
 		fprintf(stderr, "window size %d\n", window_size);
@@ -522,10 +523,11 @@ void rel_timer ()
 	if (r != NULL && r->flag == SENDER) {
 		for (i = r->server->last_acked + 1; i <= r->server->last_sent; i++) {
 			idx = (i - 1) % r->server->SWS;
-			interval = now.tv_sec * 1000;
-			interval -= r->server->time_window[idx]->tv_sec * 1000;
+			interval = now.tv_sec * 1000 * 1000 * 1000 + now.tv_nsec;
+			interval -= r->server->time_window[idx]->tv_sec * 1000 * 1000 * 1000 + r->server->time_window[idx]->tv_nsec;
+			interval /= 1000000;
 			if (interval > (long)r->timeout) {
-				printf("interval = %ld\n", interval);
+				fprintf(stderr, "interval = %ld, last_acked = %d, last_send = %d, i = %d\n", interval, r->server->last_acked, r->server->last_sent, i);
 				// fprintf(stderr, ".................. retransmit send seqno = %d len = %zu........................\n", ntohl(r->server->packet_window[idx]->seqno), (size_t)ntohs(r->server->packet_window[idx]->len));
 				conn_sendpkt (r->c, r->server->packet_window[idx], ntohs(r->server->packet_window[idx]->len));
 				clock_gettime(CLOCK_REALTIME, r->server->time_window[idx]);
@@ -553,10 +555,14 @@ void throughput(rel_t *r, timespec_t *t1, timespec_t *t2) {
 void update_rtt(rel_t *r, seqno_t idx) {
 	timespec_t now;
 	clock_gettime(CLOCK_REALTIME, &now);
-	printf("%p\n", r->server->time_window[(idx - 1) % r->server->SWS]);
-	double sample = (now.tv_sec - r->server->time_window[(idx - 1) % r->server->SWS]->tv_sec) * 1000.0; //ms
+	double sample = (now.tv_sec - r->server->time_window[(idx - 1) % r->server->SWS]->tv_sec) * 1000000000; 
+	sample += (now.tv_nsec - r->server->time_window[(idx - 1) % r->server->SWS]->tv_nsec);
+	sample /= 1000000;
+	// fprintf(stderr, "sample = %f\n", sample);
 	r->server->est_rtt = (1 - ALPHA) * r->server->est_rtt + ALPHA * sample;
 	double diff = (sample > r->server->est_rtt)? (sample - r->server->est_rtt):(r->server->est_rtt - sample); 
+	// fprintf(stderr, "diff = %f\n", diff);
 	r->server->dev_rtt = (1 - BETA) * r->server->dev_rtt + BETA * diff;
 	r->timeout = (int)(r->server->est_rtt + 4 * r->server->dev_rtt);
+	// fprintf(stderr, "update rtt to %d\n", r->timeout);
 }
